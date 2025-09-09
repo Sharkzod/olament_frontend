@@ -145,7 +145,7 @@ export default function SignupPage() {
         <div className="text-center">
           <h1 className="text-4xl font-bold text-yellow-400 mb-2">Olament</h1>
           <h2 className="text-2xl font-semibold text-white mb-2">Join Our Community</h2>
-          <p className="text-gray-400">Start digitizing Africa's local markets</p>
+          <p className="text-gray-400">Start digitizing Africa&rsquo;s local markets</p>
         </div>
 
         {/* Progress Bar */}
@@ -364,7 +364,7 @@ export default function SignupPage() {
                   </button>
                 </div>
                 {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-                  <p className="mt-1 text-sm text-red-400">Passwords don't match</p>
+                  <p className="mt-1 text-sm text-red-400">Passwords don&rsquo;t match</p>
                 )}
               </div>
 
@@ -395,7 +395,7 @@ export default function SignupPage() {
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <h3 className="text-lg font-semibold text-white mb-4">Almost Done!</h3>
                 <p className="text-gray-300 text-sm mb-4">
-                  You're about to join Olament and start digitizing Africa's local markets. 
+                  You&rsquo;re about to join Olament and start digitizing Africa&rsquo;s local markets. 
                   Please review and accept our terms to complete your registration.
                 </p>
                 
@@ -432,7 +432,7 @@ export default function SignupPage() {
                       className="h-4 w-4 text-yellow-400 bg-gray-800 border-gray-600 rounded focus:ring-yellow-400 focus:ring-2 mt-0.5"
                     />
                     <label htmlFor="agreeToMarketing" className="ml-3 text-sm text-gray-300">
-                      I'd like to receive updates about new features and market opportunities (optional)
+                      I&rsquo;d like to receive updates about new features and market opportunities (optional)
                     </label>
                   </div>
                 </div>
@@ -501,7 +501,7 @@ export default function SignupPage() {
 
         {/* Footer */}
         <div className="text-center text-xs text-gray-500 mt-8">
-          <p>&copy; 2024 Olament. Digitizing Africa's Local Markets.</p>
+          <p>&copy; 2024 Olament. Digitizing Africa&rsquo;s Local Markets.</p>
           <p className="mt-1">Prepared by Godsibest Company Ltd</p>
         </div>
       </div>

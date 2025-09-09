@@ -269,7 +269,7 @@ export default function LoginPage() {
           {/* Sign up link */}
           <div className="text-center">
             <p className="text-gray-400">
-              Don't have an account?{' '}
+              Don&rsquo;t have an account?{' '}
               <Link href="/signup" className="text-yellow-400 hover:text-yellow-300 font-medium transition-colors">
                 Sign up here
               </Link>
@@ -279,7 +279,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div className="text-center text-xs text-gray-500 mt-8">
-          <p>&copy; 2024 Olament. Digitizing Africa's Local Markets.</p>
+          <p>&copy; 2024 Olament. Digitizing Africa&rsquo;s Local Markets.</p>
           <p className="mt-1">Prepared by Godsibest Company Ltd</p>
         </div>
       </div>
