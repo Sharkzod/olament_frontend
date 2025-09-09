@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Attendance",
+  title: "Olament",
   description: "AI Attendance is an AI-powered attendance management system that automates attendance tracking using facial recognition technology.",
 };
 
