@@ -177,7 +177,7 @@ const OrlamentDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 text-white w-full">
       {/* Top bar */}
       <header className="sticky top-0 z-30 border-b border-gray-700/50 bg-gray-900/95 backdrop-blur-xl">
         <div className="flex items-center justify-between px-3 py-3 sm:px-4 sm:py-4">
@@ -194,7 +194,7 @@ const OrlamentDashboard: React.FC = () => {
                 <div className="text-gray-900 font-bold text-sm sm:text-lg">O</div>
               </div>
               <div className="hidden xs:block">
-                <div className="text-sm sm:text-lg font-bold leading-tight">Orlament</div>
+                <div className="text-sm sm:text-lg font-bold leading-tight">Olament</div>
                 <div className="text-xs leading-none text-gray-400 hidden sm:block">Your local market, online</div>
               </div>
             </div>
