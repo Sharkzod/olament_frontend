@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock, ArrowRight, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 
 // Toast Component
@@ -17,6 +18,7 @@ const Toast = ({ message, type, onClose }: { message: string; type: 'success' | 
     error: 'bg-red-900 border-red-700',
     info: 'bg-blue-900 border-blue-700'
   }
+
 
   return (
     <div className={`fixed top-4 right-4 z-50 flex items-center p-4 rounded-lg border ${bgColors[type]} text-white shadow-lg animate-in slide-in-from-top-2 duration-300`}>
@@ -41,6 +43,8 @@ export default function LoginPage() {
   })
   const [isLoading, setIsLoading] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
+    const router = useRouter()
+
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
     setToast({ message, type })
@@ -56,55 +60,59 @@ export default function LoginPage() {
     }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setIsLoading(true)
 
-    try {
-      const response = await fetch('https://olament-backend.onrender.com/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          rememberMe: formData.rememberMe
-        }),
-      })
+  try {
+    const response = await fetch('https://olament-backend.onrender.com/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: formData.email,
+        password: formData.password,
+        rememberMe: formData.rememberMe
+      }),
+    })
 
-      const data = await response.json()
+    const data = await response.json()
 
-      if (response.ok) {
-        // Success - store token if provided
-        if (data.token) {
-          if (formData.rememberMe) {
-            localStorage.setItem('authToken', data.token)
-          } else {
-            sessionStorage.setItem('authToken', data.token)
-          }
+    if (response.ok) {
+      // Success - store token if provided
+      if (data.token) {
+        if (formData.rememberMe) {
+          localStorage.setItem('authToken', data.token)
+        } else {
+          sessionStorage.setItem('authToken', data.token)
         }
-        
-        showToast('Login successful! Welcome back.', 'success')
-        
-        // Redirect or perform success actions
-        // window.location.href = '/dashboard' // Uncomment if you want to redirect
-        console.log('Login successful:', data)
-        
-      } else {
-        // Handle error responses
-        const errorMessage = data.message || data.error || 'Login failed. Please try again.'
-        showToast(errorMessage, 'error')
-        console.error('Login error:', data)
       }
-    } catch (error) {
-      // Handle network errors
-      console.error('Network error:', error)
-      showToast('Network error. Please check your connection and try again.', 'error')
-    } finally {
-      setIsLoading(false)
+      
+      showToast('Login successful!', 'success')
+      console.log('Login successful:', data)
+      
+      // Immediate redirect without delay
+      router.push('/dashboard')
+      
+    } else {
+      // Handle error responses
+      const errorMessage = data.message || data.error || 'Login failed. Please try again.'
+      showToast(errorMessage, 'error')
+      console.error('Login error:', data)
+      setIsLoading(false) // Only reset loading on error
     }
+
+  } catch (error) {
+    // Handle network errors
+    console.error('Network error:', error)
+    showToast('Network error. Please check your connection and try again.', 'error')
+    setIsLoading(false) // Only reset loading on error
   }
+  
+  // Don't reset loading state here if redirect is successful
+  // It will reset automatically when component unmounts
+}
 
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4 sm:px-6 lg:px-8">
@@ -231,17 +239,17 @@ export default function LoginPage() {
           </div>
 
           {/* Divider */}
-          <div className="relative">
+          {/* <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-700" />
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-2 bg-gray-900 text-gray-400">Or continue with</span>
             </div>
-          </div>
+          </div> */}
 
           {/* Social Login Buttons */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
               className="w-full inline-flex justify-center py-3 px-4 border border-gray-700 rounded-lg bg-gray-800 text-sm font-medium text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400 focus:ring-offset-gray-900 transition-colors"
@@ -264,7 +272,7 @@ export default function LoginPage() {
               </svg>
               <span className="ml-2">Twitter</span>
             </button>
-          </div>
+          </div> */}
 
           {/* Sign up link */}
           <div className="text-center">
