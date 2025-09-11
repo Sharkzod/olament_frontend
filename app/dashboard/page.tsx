@@ -1,5 +1,6 @@
 'use client'
 import React, { useMemo, useState, useEffect } from 'react'
+import Image from 'next/image' // Added Image import
 import {
   MapPin,
   Bell,
@@ -321,7 +322,7 @@ const OrlamentDashboard: React.FC = () => {
           <main className="flex-1 px-4 pb-20 lg:px-0 lg:pt-6">
             {/* Tabs */}
             <div className="mt-4 lg:mt-0">
-              <SegmentedTabs value={tab} onChange={(v) => setTab(v as any)} />
+              <SegmentedTabs value={tab} onChange={(v) => setTab(v as 'products' | 'shops' | 'markets')} />
             </div>
 
             {/* Search and Filter */}
@@ -413,10 +414,11 @@ const OrlamentDashboard: React.FC = () => {
                       </button>
                       
                       <div className="relative h-48 w-full overflow-hidden">
-                        <img
+                        <Image
                           src={m.cover}
                           alt={m.name}
-                          className="h-full w-full object-cover"
+                          fill
+                          className="object-cover"
                           loading="lazy"
                         />
                         <div className="absolute bottom-2 left-2 rounded-md bg-gray-900/80 px-2 py-1 text-xs text-white">
