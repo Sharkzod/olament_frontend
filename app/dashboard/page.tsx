@@ -144,7 +144,7 @@ const SegmentedTabs: React.FC<{
 }
 
 const OrlamentDashboard: React.FC = () => {
-  const [tab, setTab] = useState<'products' | 'shops' | 'markets'>('markets')
+  const [tab, setTab] = useState<'products' | 'shops' | 'markets' | 'profile'>('markets')
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredMarkets, setFilteredMarkets] = useState(markets)
   const [activeCategory, setActiveCategory] = useState('all')
