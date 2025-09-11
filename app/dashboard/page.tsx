@@ -143,7 +143,7 @@ const SegmentedTabs: React.FC<{
   )
 }
 
-const OrlamentDashboard: React.FC = () => {
+const OlamentDashboard: React.FC = () => {
   const [tab, setTab] = useState<'products' | 'shops' | 'markets' | 'profile'>('markets')
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredMarkets, setFilteredMarkets] = useState(markets)
@@ -298,7 +298,7 @@ const OrlamentDashboard: React.FC = () => {
                       <div className="text-gray-900 font-bold text-lg">O</div>
                     </div>
                     <div>
-                      <div className="text-lg font-bold leading-tight">Orlament</div>
+                      <div className="text-lg font-bold leading-tight">Olament</div>
                       <div className="text-xs leading-none text-gray-400">Your local market</div>
                     </div>
                   </div>
@@ -601,4 +601,4 @@ const OrlamentDashboard: React.FC = () => {
   )
 }
 
-export default OrlamentDashboard
+export default OlamentDashboard
