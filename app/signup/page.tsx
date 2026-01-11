@@ -91,12 +91,12 @@ export default function SignupPage() {
         showToast('success', 'Account created successfully!')
       } else {
         const errorMessage = data.message || 'Signup failed. Please try again.'
-        console.error('Signup error:', errorMessage)
+        console.log('Signup error:', errorMessage)
         setError(errorMessage)
         showToast('error', errorMessage)
       }
     } catch (error) {
-      console.error('Network error:', error)
+      console.log('error:', error)
       setError('Network error. Please try again.')
       showToast('error', 'Network error. Please try again.')
     } finally {
