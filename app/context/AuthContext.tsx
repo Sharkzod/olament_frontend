@@ -7,6 +7,7 @@ import {
   useContext, 
   ReactNode 
 } from 'react';
+import { backendUrl } from '../constant';
 
 // Define types
 interface User {
@@ -101,7 +102,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return false;
       }
 
-      const response = await fetch('https://olament-backend.onrender.com/api/auth/refresh', {
+      const response = await fetch(`${backendUrl}/api/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
@@ -168,7 +169,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const refreshToken = localStorage.getItem('refreshToken');
       
       if (refreshToken) {
-        await fetch('https://olament-backend.onrender.com/api/auth/logout', {
+        await fetch(`${backendUrl}/api/auth/logout`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken }),
