@@ -12,26 +12,32 @@ const markets = [
 export default function App() {
   const [tab, setTab] = useState('markets');
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortedMarkets, setSortedMarkets] = useState([]);
+const [sortedMarkets, setSortedMarkets] = useState<Array<{
+  id: number;
+  name: string;
+  distance: string;
+  cover: string;
+}>>([]);
 
-  useEffect(() => {
-    // Convert distance strings to numbers for sorting
-    const parseDistance = (distanceStr) => {
-      return parseFloat(distanceStr.replace(' km', ''));
-    };
 
-    // Sort markets by distance (shortest first)
-    const sorted = [...markets].sort((a, b) => {
-      return parseDistance(a.distance) - parseDistance(b.distance);
-    });
+useEffect(() => {
+  // Convert distance strings to numbers for sorting
+  const parseDistance = (distanceStr: string) => {
+    return parseFloat(distanceStr.replace(' km', ''));
+  };
 
-    // Filter based on search query
-    const results = searchQuery
-      ? sorted.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()))
-      : sorted;
-    
-    setSortedMarkets(results);
-  }, [searchQuery]);
+  // Sort markets by distance (shortest first)
+  const sorted = [...markets].sort((a, b) => {
+    return parseDistance(a.distance) - parseDistance(b.distance);
+  });
+
+  // Filter based on search query
+  const results = searchQuery
+    ? sorted.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    : sorted;
+  
+  setSortedMarkets(results);
+}, [searchQuery]);
 
   return (
     <div className="min-h-screen bg-white">
