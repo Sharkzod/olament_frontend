@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock, ArrowRight, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { backendUrl } from '../constant'
 
 // Toast Component
 const Toast = ({ message, type, onClose }: { message: string; type: 'success' | 'error' | 'info'; onClose: () => void }) => {
@@ -65,7 +66,7 @@ const handleSubmit = async (e: React.FormEvent) => {
   setIsLoading(true)
 
   try {
-    const response = await fetch('https://olament-backend.onrender.com/api/auth/login', {
+    const response = await fetch(`${backendUrl}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

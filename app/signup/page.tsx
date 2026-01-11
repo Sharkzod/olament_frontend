@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { backendUrl } from '../constant'
+import { useAuth } from '../context/AuthContext'
 import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, CheckCircle, X, AlertCircle } from 'lucide-react'
 
 export default function SignupPage() {
@@ -15,12 +18,16 @@ export default function SignupPage() {
     phone: '',
     password: '',
     confirmPassword: '',
-    accountType: 'buyer',
+    role: 'buyer',
     agreeToTerms: false,
     agreeToMarketing: false
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const router = useRouter()
+  
+  // Use the auth context
+  const { signup: authSignup } = useAuth() // Rename to avoid conflict
 
   // ✅ Toast state
   const [toast, setToast] = useState<{
@@ -31,8 +38,6 @@ export default function SignupPage() {
 
   const showToast = (type: 'success' | 'error' | 'info', message: string) => {
     setToast({ show: true, type, message })
-
-    // Auto-hide after 3s
     setTimeout(() => {
       setToast(prev => ({ ...prev, show: false }))
     }, 3000)
@@ -67,9 +72,10 @@ export default function SignupPage() {
     if (currentStep !== 3) return
 
     setIsLoading(true)
+    setError('')
 
     try {
-      const response = await fetch('https://olament-backend.onrender.com/api/auth/signup', {
+      const response = await fetch(`${backendUrl}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -78,7 +84,7 @@ export default function SignupPage() {
           email: formData.email,
           phone: formData.phone,
           password: formData.password,
-          accountType: formData.accountType,
+          role: formData.role,
           agreeToTerms: formData.agreeToTerms,
           agreeToMarketing: formData.agreeToMarketing
         }),
@@ -87,16 +93,43 @@ export default function SignupPage() {
       const data = await response.json()
 
       if (response.ok) {
-        console.log('Signup successful:', data)
+        // Use the auth context to store session
+        if (authSignup && typeof authSignup === 'function') {
+          await authSignup(data.user, {
+            accessToken: data.accessToken,
+            refreshToken: data.refreshToken,
+            expiresIn: data.expiresIn
+          });
+        } else {
+          // Fallback: Store directly in localStorage if auth context is not available
+          const expiryTime = new Date().getTime() + (data.expiresIn || 15 * 60 * 1000);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          localStorage.setItem('accessToken', data.accessToken);
+          if (data.refreshToken) {
+            localStorage.setItem('refreshToken', data.refreshToken);
+          }
+          localStorage.setItem('tokenExpiry', expiryTime.toString());
+        }
+        
         showToast('success', 'Account created successfully!')
+        
+        // Redirect to dashboard
+        setTimeout(() => {
+          router.push('/dashboard')
+        }, 1500)
       } else {
-        const errorMessage = data.message || 'Signup failed. Please try again.'
-        console.log('Signup error:', errorMessage)
-        setError(errorMessage)
-        showToast('error', errorMessage)
+        // Handle user already exists error specifically
+        if (data.error === 'DuplicateEmailError' || data.message?.includes('already exists')) {
+          setError('An account with this email already exists. Please try logging in.')
+          showToast('error', 'An account with this email already exists.')
+        } else {
+          const errorMessage = data.message || 'Signup failed. Please try again.'
+          setError(errorMessage)
+          showToast('error', errorMessage)
+        }
       }
     } catch (error) {
-      console.log('error:', error)
+      console.log('Network error:', error)
       setError('Network error. Please try again.')
       showToast('error', 'Network error. Please try again.')
     } finally {
@@ -191,7 +224,10 @@ export default function SignupPage() {
           {/* Error Message */}
           {error && (
             <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg">
-              <p className="text-sm">{error}</p>
+              <div className="flex items-center">
+                <AlertCircle className="w-5 h-5 mr-2" />
+                <p className="text-sm">{error}</p>
+              </div>
             </div>
           )}
 
@@ -280,13 +316,13 @@ export default function SignupPage() {
               </div>
 
               <div>
-                <label htmlFor="accountType" className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="role" className="block text-sm font-medium text-gray-300 mb-2">
                   Account Type
                 </label>
                 <select
-                  id="accountType"
-                  name="accountType"
-                  value={formData.accountType}
+                  id="role"
+                  name="role"
+                  value={formData.role}
                   onChange={handleInputChange}
                   className="appearance-none relative block w-full px-3 py-3 bg-gray-800 border border-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent sm:text-sm transition-colors"
                 >
