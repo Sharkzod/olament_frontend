@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import ClientProvider from "./ClientProvider";
+import { AuthProvider } from "./lib/contexts/AuthContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Olament",
-  description: "AI Attendance is an AI-powered attendance management system that automates attendance tracking using facial recognition technology.",
+  description: "Your app description",
 };
 
 export default function RootLayout({
@@ -29,9 +29,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ClientProvider>
+        <AuthProvider>
           {children}
-        </ClientProvider>
+        </AuthProvider>
       </body>
     </html>
   );

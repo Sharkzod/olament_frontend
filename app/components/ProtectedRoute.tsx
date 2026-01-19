@@ -1,33 +1,44 @@
-// components/ProtectedRoute.jsx
-import { useEffect } from 'react';
+// app/components/ProtectedRoute.tsx - UPDATED VERSION
+'use client'
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../lib/hooks/useAuthApi';
 
-export default function ProtectedRoute({ children }) {
-  const { isAuthenticated, isLoading, refreshAuth } = useAuth();
+export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const [shouldRender, setShouldRender] = useState(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      if (!isLoading && !isAuthenticated) {
-        // Try to refresh token
-        const refreshed = await refreshAuth();
-        if (!refreshed) {
-          router.push('/login');
-        }
-      }
-    };
+    console.log('🛡️ ProtectedRoute: Auth state updated', {
+      isAuthenticated,
+      isLoading,
+      timestamp: new Date().toISOString()
+    });
 
-    checkAuth();
-  }, [isAuthenticated, isLoading, router, refreshAuth]);
+    // Only check when loading is complete
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        console.log('🛡️ ProtectedRoute: Not authenticated after loading, redirecting');
+        router.replace('/login');
+      } else {
+        console.log('🛡️ ProtectedRoute: Authenticated, rendering children');
+        setShouldRender(true);
+      }
+    }
+  }, [isAuthenticated, isLoading, router]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking authentication...</p>
+        </div>
       </div>
     );
   }
 
-  return isAuthenticated ? children : null;
+  // Only render children when authenticated AND loading is complete
+  return shouldRender ? <>{children}</> : null;
 }
