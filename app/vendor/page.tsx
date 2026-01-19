@@ -21,19 +21,19 @@ export default function VendorPage() {
   const [searchQuery, setSearchQuery] = useState('');
   
   const { 
-    shops, 
-    vendorProfile, 
-    stats, 
-    loading, 
-    error, 
-    getVendorProfile, 
-    updateVendorProfile,
-    getMyShops, 
-    getVendorStats,
-    toggleShopStatus,
-    deleteShop,
-    refreshVendorData
-  } = useVendor();
+  shops, 
+  vendorProfile, 
+  stats, 
+  loading, 
+  error, 
+  getVendorProfile, 
+  updateVendorProfile,
+  getShopsByOwnerId, // Changed from getMyShops to getShopsByOwnerId
+  getVendorStats,
+  toggleShopStatus,
+  deleteShop,
+  refreshVendorData
+} = useVendor();
   
   const { profile } = useProfile();
   
