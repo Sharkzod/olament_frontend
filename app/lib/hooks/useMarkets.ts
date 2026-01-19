@@ -1,4 +1,4 @@
-// lib/hooks/useMarkets.ts - UPDATED
+// lib/hooks/useMarkets.ts - FIXED VERSION
 import { useState, useCallback, useEffect } from 'react';
 import { marketApi, Market, MarketResponse, StatesResponse } from '../api/marketApi';
 
@@ -20,6 +20,16 @@ interface UseMarketsReturn {
   setSelectedCity: (city: string) => void;
   refreshMarkets: () => Promise<void>;
 }
+
+// Type guard to check if object has markets property
+const hasMarketsProperty = (obj: any): obj is { markets: Market[] } => {
+  return obj && typeof obj === 'object' && 'markets' in obj;
+};
+
+// Type guard to check if object has data property
+const hasDataProperty = (obj: any): obj is { data: any } => {
+  return obj && typeof obj === 'object' && 'data' in obj;
+};
 
 export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
   const [markets, setMarkets] = useState<Market[]>([]);
@@ -79,15 +89,18 @@ export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
         return { success: false, error: response.message || 'No markets found' };
       }
       
-      // Extract market data from response
-      if (Array.isArray(response.data)) {
+      // Extract market data from response - FIXED TYPE CHECKING
+      if (Array.isArray(response)) {
         // Direct array response
+        marketData = response;
+      } else if (Array.isArray(response.data)) {
+        // Data property contains array
         marketData = response.data;
-      } else if (response.data && Array.isArray(response.data.markets)) {
-        // Nested markets array
+      } else if (hasDataProperty(response) && hasMarketsProperty(response.data)) {
+        // Data has markets property
         marketData = response.data.markets;
-      } else if (response.markets && Array.isArray(response.markets)) {
-        // Alternative nested format
+      } else if (hasMarketsProperty(response)) {
+        // Response has markets property
         marketData = response.markets;
       }
       
@@ -134,12 +147,14 @@ export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
         return { success: false, error: response.message || 'No markets found' };
       }
       
-      // Extract market data from response
-      if (Array.isArray(response.data)) {
+      // Extract market data from response - FIXED TYPE CHECKING
+      if (Array.isArray(response)) {
+        marketData = response;
+      } else if (Array.isArray(response.data)) {
         marketData = response.data;
-      } else if (response.data && Array.isArray(response.data.markets)) {
+      } else if (hasDataProperty(response) && hasMarketsProperty(response.data)) {
         marketData = response.data.markets;
-      } else if (response.markets && Array.isArray(response.markets)) {
+      } else if (hasMarketsProperty(response)) {
         marketData = response.markets;
       }
       
@@ -173,14 +188,16 @@ export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
       console.log('🏪 useMarkets: Getting all markets...');
       const response = await marketApi.getAllMarkets();
       
-      // Handle different response formats
+      // Handle different response formats - FIXED TYPE CHECKING
       let marketData: Market[] = [];
       
-      if (Array.isArray(response.data)) {
+      if (Array.isArray(response)) {
+        marketData = response;
+      } else if (Array.isArray(response.data)) {
         marketData = response.data;
-      } else if (response.data && Array.isArray(response.data.markets)) {
+      } else if (hasDataProperty(response) && hasMarketsProperty(response.data)) {
         marketData = response.data.markets;
-      } else if (response.markets && Array.isArray(response.markets)) {
+      } else if (hasMarketsProperty(response)) {
         marketData = response.markets;
       }
       
