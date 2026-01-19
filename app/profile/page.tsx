@@ -83,13 +83,14 @@ function ProfilePageContent() {
   } = useProfile();
   
   const { 
-    shop, 
-    isLoading: shopLoading, 
-    getMyShop, 
-    createShop, 
-    updateShop,
-    error: shopError 
-  } = useShop();
+  shop, 
+  loading: shopLoading, // ✅ FIXED: changed from isLoading to loading
+  getMyShop, 
+  createShop, 
+  updateShop,
+  uploadShopImages, // ✅ Added this missing function
+  error: shopError 
+} = useShop();
   
   const [activeSection, setActiveSection] = useState<'user' | 'shop'>('user');
   const [isEditingUser, setIsEditingUser] = useState(false);
