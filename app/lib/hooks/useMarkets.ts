@@ -1,4 +1,4 @@
-// lib/hooks/useMarkets.ts - FIXED VERSION
+// lib/hooks/useMarkets.ts - SIMPLIFIED FIX
 import { useState, useCallback, useEffect } from 'react';
 import { marketApi, Market, MarketResponse, StatesResponse } from '../api/marketApi';
 
@@ -20,16 +20,6 @@ interface UseMarketsReturn {
   setSelectedCity: (city: string) => void;
   refreshMarkets: () => Promise<void>;
 }
-
-// Type guard to check if object has markets property
-const hasMarketsProperty = (obj: any): obj is { markets: Market[] } => {
-  return obj && typeof obj === 'object' && 'markets' in obj;
-};
-
-// Type guard to check if object has data property
-const hasDataProperty = (obj: any): obj is { data: any } => {
-  return obj && typeof obj === 'object' && 'data' in obj;
-};
 
 export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
   const [markets, setMarkets] = useState<Market[]>([]);
@@ -68,7 +58,38 @@ export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
     }
   }, []);
 
-  // Get markets by state - FIXED RESPONSE HANDLING
+  // Helper function to extract market data from various response formats
+  const extractMarketData = (response: any): Market[] => {
+    // If response is already an array of markets
+    if (Array.isArray(response)) {
+      return response;
+    }
+    
+    // If response has data property that's an array
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data;
+    }
+    
+    // If response has data.markets
+    if (response?.data?.markets && Array.isArray(response.data.markets)) {
+      return response.data.markets;
+    }
+    
+    // If response has markets property directly
+    if (response?.markets && Array.isArray(response.markets)) {
+      return response.markets;
+    }
+    
+    // If response.data is an object with markets (using type assertion to bypass TypeScript)
+    const data = response?.data;
+    if (data && typeof data === 'object' && 'markets' in data && Array.isArray((data as any).markets)) {
+      return (data as any).markets;
+    }
+    
+    return [];
+  };
+
+  // Get markets by state
   const getMarketsByState = useCallback(async (state: string): Promise<{ success: boolean; markets?: Market[]; error?: string }> => {
     setLoading(true);
     setError(null);
@@ -79,30 +100,16 @@ export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
       
       console.log('🏪 useMarkets: Raw API response:', response);
       
-      // Handle different response formats
-      let marketData: Market[] = [];
-      
-      if (response.success === false) {
+      if (response?.success === false) {
         // If markets not found but API returns success: false with message
-        setError(response.message || 'No markets found');
+        const errorMsg = response.message || 'No markets found';
+        setError(errorMsg);
         setMarkets([]);
-        return { success: false, error: response.message || 'No markets found' };
+        return { success: false, error: errorMsg };
       }
       
-      // Extract market data from response - FIXED TYPE CHECKING
-      if (Array.isArray(response)) {
-        // Direct array response
-        marketData = response;
-      } else if (Array.isArray(response.data)) {
-        // Data property contains array
-        marketData = response.data;
-      } else if (hasDataProperty(response) && hasMarketsProperty(response.data)) {
-        // Data has markets property
-        marketData = response.data.markets;
-      } else if (hasMarketsProperty(response)) {
-        // Response has markets property
-        marketData = response.markets;
-      }
+      // Extract market data using helper function
+      const marketData = extractMarketData(response);
       
       console.log('🏪 useMarkets: Extracted market data:', marketData);
       
@@ -111,7 +118,7 @@ export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
         setMarkets(marketData);
         return { success: true, markets: marketData };
       } else {
-        const errorMsg = response.message || 'No markets found in this state';
+        const errorMsg = response?.message || 'No markets found in this state';
         setError(errorMsg);
         setMarkets([]);
         return { success: false, error: errorMsg };
@@ -127,7 +134,7 @@ export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
     }
   }, []);
 
-  // Get markets by state and city - FIXED RESPONSE HANDLING
+  // Get markets by state and city
   const getMarketsByStateAndCity = useCallback(async (state: string, city: string): Promise<{ success: boolean; markets?: Market[]; error?: string }> => {
     setLoading(true);
     setError(null);
@@ -138,32 +145,22 @@ export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
       
       console.log('🏪 useMarkets: Raw API response:', response);
       
-      // Handle different response formats
-      let marketData: Market[] = [];
-      
-      if (response.success === false) {
-        setError(response.message || 'No markets found');
+      if (response?.success === false) {
+        const errorMsg = response.message || 'No markets found';
+        setError(errorMsg);
         setMarkets([]);
-        return { success: false, error: response.message || 'No markets found' };
+        return { success: false, error: errorMsg };
       }
       
-      // Extract market data from response - FIXED TYPE CHECKING
-      if (Array.isArray(response)) {
-        marketData = response;
-      } else if (Array.isArray(response.data)) {
-        marketData = response.data;
-      } else if (hasDataProperty(response) && hasMarketsProperty(response.data)) {
-        marketData = response.data.markets;
-      } else if (hasMarketsProperty(response)) {
-        marketData = response.markets;
-      }
+      // Extract market data using helper function
+      const marketData = extractMarketData(response);
       
       if (marketData.length > 0) {
         console.log('🏪 useMarkets: Markets fetched successfully:', marketData.length, 'markets');
         setMarkets(marketData);
         return { success: true, markets: marketData };
       } else {
-        const errorMsg = response.message || 'No markets found';
+        const errorMsg = response?.message || 'No markets found';
         setError(errorMsg);
         setMarkets([]);
         return { success: false, error: errorMsg };
@@ -188,25 +185,15 @@ export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
       console.log('🏪 useMarkets: Getting all markets...');
       const response = await marketApi.getAllMarkets();
       
-      // Handle different response formats - FIXED TYPE CHECKING
-      let marketData: Market[] = [];
-      
-      if (Array.isArray(response)) {
-        marketData = response;
-      } else if (Array.isArray(response.data)) {
-        marketData = response.data;
-      } else if (hasDataProperty(response) && hasMarketsProperty(response.data)) {
-        marketData = response.data.markets;
-      } else if (hasMarketsProperty(response)) {
-        marketData = response.markets;
-      }
+      // Extract market data using helper function
+      const marketData = extractMarketData(response);
       
       if (marketData.length > 0) {
         console.log('🏪 useMarkets: All markets fetched successfully:', marketData.length, 'markets');
         setMarkets(marketData);
         return { success: true, markets: marketData };
       } else {
-        const errorMsg = response.message || 'No markets found';
+        const errorMsg = response?.message || 'No markets found';
         setError(errorMsg);
         setMarkets([]);
         return { success: false, error: errorMsg };
