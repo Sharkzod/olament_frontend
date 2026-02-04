@@ -13,9 +13,19 @@ export const getAllProducts = async (params?: {
   sortBy?: string;
   order?: 'asc' | 'desc';
   featured?: boolean;
+  isAvailable?: boolean;
+  isPublished?: boolean;
+  status?: string;
+  vendor?: string;
 }) => {
-  const response = await apiClient.get('/products', { params });
-  return response.data;
+  try {
+    const response = await apiClient.get('/products', { params });
+    console.log('📦 getAllProducts API response:', response.data);
+    return response.data; // Return the full response which contains { success, docs, ... }
+  } catch (error) {
+    console.error('❌ getAllProducts API error:', error);
+    throw error;
+  }
 };
 
 // Get product by ID

@@ -109,7 +109,14 @@ export interface UpdateVendorProfileData {
   taxId?: string;
   businessRegistration?: string;
   yearsInBusiness?: number;
+  vendorProfile?: {
+    businessName?: string;
+    businessDescription?: string;
+    taxId?: string;
+    bankAccount?: any;
+  };
 }
+
 
 export interface VendorStats {
   totalShops: number;
@@ -146,7 +153,10 @@ class VendorApi {
   // Get vendor profile
   async getVendorProfile(): Promise<ApiResponse<VendorProfile>> {
     try {
-      const response = await apiClient.get('/vendors/profile');
+      const response = await apiClient.get('/vendor/profile');
+
+      console.log('VendorApi: Get vendor profile response:', response.data);
+      // Return just the data part
       return response.data;
     } catch (error: any) {
       console.error('VendorApi: Get vendor profile error:', error);
@@ -154,10 +164,56 @@ class VendorApi {
     }
   }
 
+  // async getMyProfile(): Promise<ApiResponse<VendorProfile>> {
+  //   try {
+  //     const response = await apiClient.get('/vendor/profile');
+  //     return response.data;
+  //   } catch (error: any) {
+  //     console.error('VendorApi: Get my profile error:', error);
+  //     throw error;
+  //   }
+  // }
+
   // Update vendor profile
   async updateVendorProfile(data: UpdateVendorProfileData): Promise<ApiResponse<VendorProfile>> {
     try {
-      const response = await apiClient.put('/vendors/profile', data);
+      // Prepare data in the format backend expects
+      const backendData: any = {};
+
+      // Map fields to backend structure
+      if (data.businessName) {
+        backendData['vendorProfile.businessName'] = data.businessName;
+        backendData.businessName = data.businessName;
+      }
+      if (data.businessDescription) {
+        backendData['vendorProfile.businessDescription'] = data.businessDescription;
+        backendData.businessDescription = data.businessDescription;
+      }
+      if (data.businessAddress) {
+        backendData.address = data.businessAddress;
+        backendData.businessAddress = data.businessAddress;
+      }
+      if (data.businessPhone) {
+        backendData.phone = data.businessPhone;
+      }
+      if (data.taxId) {
+        backendData['vendorProfile.taxId'] = data.taxId;
+        backendData.taxId = data.taxId;
+      }
+      if (data.yearsInBusiness !== undefined) {
+        backendData.yearsInBusiness = data.yearsInBusiness;
+      }
+      if (data.businessRegistration) {
+        backendData.businessRegistration = data.businessRegistration;
+      }
+      if (data.businessEmail) {
+        backendData.businessEmail = data.businessEmail;
+      }
+      if (data.businessWebsite) {
+        backendData.businessWebsite = data.businessWebsite;
+      }
+
+      const response = await apiClient.put('/vendor/profile', backendData);
       return response.data;
     } catch (error: any) {
       console.error('VendorApi: Update vendor profile error:', error);
@@ -166,14 +222,14 @@ class VendorApi {
   }
 
   async getShopsByOwnerId(ownerId: string): Promise<ApiResponse<Shop[]>> {
-  try {
-    const response = await apiClient.get(`/shops/owner/${ownerId}`);
-    return response.data;
-  } catch (error: any) {
-    console.error('VendorApi: Get shops by owner ID error:', error);
-    throw error;
+    try {
+      const response = await apiClient.get(`/shops/owner/${ownerId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('VendorApi: Get shops by owner ID error:', error);
+      throw error;
+    }
   }
-}
 
   // // Get vendor stats
   // async getVendorStats(): Promise<ApiResponse<VendorStats>> {

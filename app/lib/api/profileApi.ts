@@ -1,101 +1,250 @@
-// lib/api/profileApi.ts
-import apiClient from './apiClient';
+import axios from 'axios';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+// Address interface matching API response
+export interface Address {
+  street: string;
+  city: string;
+  state: string;
+  country: string;
+  zipCode: string;
+}
+
+// Business Address interface (can be same as Address)
+export interface BusinessAddress {
+  street: string;
+  city: string;
+  state: string;
+  country: string;
+  zipCode: string;
+}
+
+// Vendor Profile interface matching API response
+export interface VendorProfile {
+  businessName: string;
+  businessDescription: string;
+  businessAddress: BusinessAddress;
+  businessPhone: string;
+  businessEmail: string;
+  businessWebsite: string;
+  taxId: string;
+  businessRegistration: string;
+  yearsInBusiness: number;
+  businessLogo: string;
+  shopIds: string[];
+  shops: Array<{
+    _id: string;
+    name: string;
+    category: string;
+    rating: number;
+    isVerified: boolean;
+  }>;
+}
+
+// User Profile interface matching API response
 export interface UserProfile {
   _id: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string;
   phone?: string;
   role: string;
-  avatar: string;
-  profile?: {
-    shopName?: string;
-    address?: string;
-    avatarUrl?: string;
-  };
-  emailVerified: boolean;
-  phoneVerified: boolean;
+  avatar?: string;
+  address?: Address;  // Changed from string to Address object
+  isVerified: boolean;
+  isActive: boolean;
   createdAt: string;
-  updatedAt: string;
+  vendorProfile?: VendorProfile;
+  // Additional fields that appear at root level for vendors
+  businessName?: string;
+  businessDescription?: string;
+  businessLogo?: string;
+  shops?: Array<{
+    _id: string;
+    name: string;
+    category: string;
+    rating: number;
+    isVerified: boolean;
+  }>;
 }
 
 export interface UpdateProfileData {
-  firstName?: string;
-  lastName?: string;
-  email?: string;
+  name?: string;
   phone?: string;
   avatar?: string;
-  profile?: {
-    shopName?: string;
-    address?: string;
-    avatarUrl?: string;
+  address?: Address | string;  // Can accept both formats
+  businessInfo?: {
+    businessName?: string;
+    businessDescription?: string;
+    businessAddress?: BusinessAddress | string;
+    businessPhone?: string;
+    businessEmail?: string;
+    businessWebsite?: string;
+    taxId?: string;
+    businessRegistration?: string;
+    yearsInBusiness?: number;
+    businessLogo?: string;
   };
 }
 
 export interface ChangePasswordData {
   currentPassword: string;
   newPassword: string;
+  confirmPassword: string;
 }
 
-export interface BaseResponse<T> {
+export interface ApiResponse<T> {
   success: boolean;
   message?: string;
-  data: T;
+  data?: T;
 }
 
-class ProfileApi {
-  // Get current user profile
-  async getProfile(): Promise<BaseResponse<UserProfile>> {
+// Get auth token
+const getAuthToken = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('token');
+  }
+  return null;
+};
+
+// Create axios instance
+const apiClient = axios.create({
+  baseURL: API_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add request interceptor to add token
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = getAuthToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor to handle 401 errors globally
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expired or invalid
+      console.log('📡 apiClient: Token expired, clearing localStorage');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Profile API functions
+export const profileApi = {
+  // Get user profile
+  async getProfile(): Promise<ApiResponse<UserProfile>> {
     try {
-      console.log('👤 ProfileApi: Getting user profile...');
+      console.log('📡 profileApi: Fetching profile from:', `${API_URL}/users/profile`);
+
       const response = await apiClient.get('/users/profile');
-      console.log('👤 ProfileApi: Profile response:', response.data);
-      return response.data;
-    } catch (error: any) {
-      console.error('👤 ProfileApi: Profile fetch error:', error);
-      throw error;
-    }
-  }
 
-  // Update user profile
-  async updateProfile(data: UpdateProfileData): Promise<BaseResponse<UserProfile>> {
+      console.log('📡 profileApi: Response received:', response.data);
+
+      return {
+        success: true,
+        data: response.data.data || response.data.user,
+      };
+    } catch (error: any) {
+      console.error('📡 profileApi: Error fetching profile:', error);
+
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to fetch profile',
+      };
+    }
+  },
+
+  // Update profile
+  async updateProfile(data: UpdateProfileData): Promise<ApiResponse<UserProfile>> {
     try {
-      console.log('👤 ProfileApi: Updating profile...', data);
+      console.log('📡 profileApi: Updating profile with:', data);
+
       const response = await apiClient.put('/users/profile', data);
-      console.log('👤 ProfileApi: Update response:', response.data);
-      return response.data;
-    } catch (error: any) {
-      console.error('👤 ProfileApi: Update profile error:', error);
-      throw error;
-    }
-  }
 
-  // Upload profile avatar
-  async uploadAvatar(imageUrl: string): Promise<BaseResponse<{ avatar: string }>> {
-    try {
-      console.log('👤 ProfileApi: Uploading avatar...');
-      const response = await apiClient.post('/users/profile/avatar', { imageUrl });
-      console.log('👤 ProfileApi: Avatar upload response:', response.data);
-      return response.data;
+      return {
+        success: true,
+        data: response.data.data || response.data.user,
+      };
     } catch (error: any) {
-      console.error('👤 ProfileApi: Avatar upload error:', error);
-      throw error;
+      console.error('📡 profileApi: Error updating profile:', error);
+
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to update profile',
+      };
     }
-  }
+  },
+
+  // Upload avatar
+  async uploadAvatar(imageUrl: string): Promise<ApiResponse<{ avatar: string }>> {
+    try {
+      const response = await apiClient.put('/users/profile/avatar', { avatar: imageUrl });
+
+      return {
+        success: true,
+        data: response.data.data,
+      };
+    } catch (error: any) {
+      console.error('📡 profileApi: Error uploading avatar:', error);
+
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to upload avatar',
+      };
+    }
+  },
 
   // Change password
-  async changePassword(data: ChangePasswordData): Promise<BaseResponse<null>> {
+  async changePassword(data: ChangePasswordData): Promise<ApiResponse<null>> {
     try {
-      console.log('👤 ProfileApi: Changing password...');
       const response = await apiClient.put('/users/change-password', data);
-      console.log('👤 ProfileApi: Password change response:', response.data);
-      return response.data;
-    } catch (error: any) {
-      console.error('👤 ProfileApi: Password change error:', error);
-      throw error;
-    }
-  }
-}
 
-export const profileApi = new ProfileApi();
+      return {
+        success: true,
+        message: response.data.message,
+      };
+    } catch (error: any) {
+      console.error('📡 profileApi: Error changing password:', error);
+
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to change password',
+      };
+    }
+  },
+
+  // Helper function to format address for display
+  formatAddress(address?: Address | string): string {
+    if (!address) return 'No address provided';
+
+    if (typeof address === 'string') return address;
+
+    const parts = [
+      address.street,
+      address.city,
+      address.state,
+      address.zipCode,
+      address.country
+    ].filter(Boolean);
+
+    return parts.join(', ') || 'No address provided';
+  },
+};

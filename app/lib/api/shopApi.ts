@@ -1,126 +1,112 @@
-// lib/api/shopApi.ts
+// lib/api/shopApi.ts - FIXED VERSION
 import apiClient from './apiClient';
 
-export interface ShopProfile {
+// This matches what the API actually returns
+export interface ShopApiResponse {
   _id: string;
-  shopName: string;
+  name: string;  // API uses 'name', not 'shopName'
   description: string;
   category: string;
-  logo: string;
-  coverImage: string;
-  address: {
-    street: string;
-    city: string;
-    state: string;
-    country: string;
-    zipCode: string;
+  marketId?: {
+    _id?: string;
+    name?: string;
+    city?: string;
+    state?: string;
   };
-  contact: {
-    phone: string;
-    email: string;
-    website: string;
-  };
-  businessHours: {
-    monday: { open: string; close: string };
-    tuesday: { open: string; close: string };
-    wednesday: { open: string; close: string };
-    thursday: { open: string; close: string };
-    friday: { open: string; close: string };
-    saturday: { open: string; close: string };
-    sunday: { open: string; close: string };
-  };
-  deliveryOptions: {
-    deliveryAvailable: boolean;
-    pickupAvailable: boolean;
-    deliveryRadius: number;
-    deliveryFee: number;
-    minOrderAmount: number;
-  };
-  status: 'open' | 'closed' | 'busy';
+  ownerId: string;
+  address: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  isActive: boolean;
+  rating: number;
+  totalReviews: number;
+  productsCount: number;
+  imageUrl?: string;
+  coverImageUrl?: string;
+  tags?: string[];
+  isVerified: boolean;
   verificationStatus: 'verified' | 'pending' | 'unverified';
-  owner?: string;
+  features?: string[];
+  minimumOrder?: number;
+  deliveryFee?: number;
+  deliveryRadius?: number;
   createdAt?: string;
   updatedAt?: string;
 }
 
-export interface CreateShopData {
-  shopName: string;
+// This is what your component uses
+export interface ShopProfile {
+  _id: string;
+  name: string;  // Changed from shopName to match API
   description: string;
   category: string;
+  marketId?: {
+    _id?: string;
+    name?: string;
+    city?: string;
+    state?: string;
+  };
+  address: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  isActive: boolean;
+  isVerified: boolean;
+  rating: number;
+  totalReviews: number;
+  productsCount: number;
+  imageUrl?: string;
+  coverImageUrl?: string;
+  tags?: string[];
+  verificationStatus?: 'verified' | 'pending' | 'unverified';
+  createdAt?: string;
+  updatedAt?: string;
+  // Optional fields for full profile
   logo?: string;
   coverImage?: string;
-  address: {
-    street: string;
-    city: string;
-    state: string;
-    zipCode: string;
-    country: string;
-  };
-  contact: {
-    phone: string;
-    email: string;
-    website?: string;
-  };
-  businessHours?: {
-    monday?: { open: string; close: string };
-    tuesday?: { open: string; close: string };
-    wednesday?: { open: string; close: string };
-    thursday?: { open: string; close: string };
-    friday?: { open: string; close: string };
-    saturday?: { open: string; close: string };
-    sunday?: { open: string; close: string };
-  };
-  deliveryOptions?: {
-    deliveryAvailable?: boolean;
-    pickupAvailable?: boolean;
-    deliveryRadius?: number;
-    deliveryFee?: number;
-    minOrderAmount?: number;
-  };
+  status?: 'open' | 'closed' | 'busy';
+  owner?: string;
+}
+
+export interface CreateShopData {
+  name: string;  // Changed from shopName
+  description: string;
+  category: string;
+  marketId?: string;
+  address: string;
+  contactPhone: string;
+  contactEmail: string;
+  imageUrl?: string;
+  coverImageUrl?: string;
+  tags?: string[];
+  minimumOrder?: number;
+  deliveryFee?: number;
+  deliveryRadius?: number;
 }
 
 export interface UpdateShopData {
-  shopName?: string;
+  name?: string;  // Changed from shopName
   description?: string;
   category?: string;
-  logo?: string;
-  coverImage?: string;
-  address?: {
-    street?: string;
-    city?: string;
-    state?: string;
-    zipCode?: string;
-    country?: string;
-  };
-  contact?: {
-    phone?: string;
-    email?: string;
-    website?: string;
-  };
-  businessHours?: {
-    monday?: { open: string; close: string };
-    tuesday?: { open: string; close: string };
-    wednesday?: { open: string; close: string };
-    thursday?: { open: string; close: string };
-    friday?: { open: string; close: string };
-    saturday?: { open: string; close: string };
-    sunday?: { open: string; close: string };
-  };
-  deliveryOptions?: {
-    deliveryAvailable?: boolean;
-    pickupAvailable?: boolean;
-    deliveryRadius?: number;
-    deliveryFee?: number;
-    minOrderAmount?: number;
-  };
-  status?: 'open' | 'closed' | 'busy';
-  verificationStatus?: 'verified' | 'pending' | 'unverified';
+  address?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  imageUrl?: string;
+  coverImageUrl?: string;
+  tags?: string[];
+  isActive?: boolean;
+  minimumOrder?: number;
+  deliveryFee?: number;
+  deliveryRadius?: number;
 }
 
 export interface BaseResponse<T> {
   success: boolean;
   message?: string;
-  data: T;
+  data?: T;
+  count?: number;
+  total?: number;
+  page?: number;
+  pages?: number;
 }
 
 export interface ShopListResponse {
@@ -132,15 +118,56 @@ export interface ShopListResponse {
 }
 
 class ShopApi {
-  // Get current user's shop
-  async getMyShop(): Promise<BaseResponse<ShopProfile>> {
+  // Helper to map API response to ShopProfile
+  private mapToShopProfile(apiShop: ShopApiResponse): ShopProfile {
+    return {
+      _id: apiShop._id,
+      name: apiShop.name,
+      description: apiShop.description,
+      category: apiShop.category,
+      marketId: apiShop.marketId,
+      address: apiShop.address,
+      contactPhone: apiShop.contactPhone,
+      contactEmail: apiShop.contactEmail,
+      isActive: apiShop.isActive,
+      isVerified: apiShop.isVerified,
+      rating: apiShop.rating,
+      totalReviews: apiShop.totalReviews,
+      productsCount: apiShop.productsCount,
+      imageUrl: apiShop.imageUrl,
+      coverImageUrl: apiShop.coverImageUrl,
+      tags: apiShop.tags,
+      verificationStatus: apiShop.verificationStatus,
+      createdAt: apiShop.createdAt,
+      updatedAt: apiShop.updatedAt,
+    };
+  }
+
+  // Get current user's shops
+  async getMyShops(): Promise<BaseResponse<{ shops: ShopProfile[]; total: number }>> {
     try {
-      console.log('🏪 ShopApi: Getting my shop...');
-      const response = await apiClient.get('/shops/my-shop');
-      console.log('🏪 ShopApi: My shop response:', response.data);
+      console.log('🏪 ShopApi: Getting my shops...');
+      const response = await apiClient.get('/shops/my-shops');
+      console.log('🏪 ShopApi: My shops response:', response.data);
+
+      // Handle the actual API response structure
+      const apiData = response.data;
+
+      if (apiData.success && Array.isArray(apiData.data)) {
+        const shops = apiData.data.map((shop: ShopApiResponse) => this.mapToShopProfile(shop));
+
+        return {
+          success: true,
+          data: {
+            shops,
+            total: apiData.total || apiData.count || shops.length
+          }
+        };
+      }
+
       return response.data;
     } catch (error: any) {
-      console.error('🏪 ShopApi: Get my shop error:', error);
+      console.error('🏪 ShopApi: Get my shops error:', error);
       throw error;
     }
   }
@@ -151,12 +178,21 @@ class ShopApi {
       console.log('🏪 ShopApi: Creating shop...', data);
       const response = await apiClient.post('/shops', data);
       console.log('🏪 ShopApi: Create shop response:', response.data);
+
+      if (response.data.success && response.data.data) {
+        return {
+          success: true,
+          data: this.mapToShopProfile(response.data.data)
+        };
+      }
+
       return response.data;
     } catch (error: any) {
       console.error('🏪 ShopApi: Create shop error:', error);
       throw error;
     }
   }
+  
 
   // Update shop
   async updateShop(shopId: string, data: UpdateShopData): Promise<BaseResponse<ShopProfile>> {
@@ -164,6 +200,14 @@ class ShopApi {
       console.log('🏪 ShopApi: Updating shop...', { shopId, data });
       const response = await apiClient.put(`/shops/${shopId}`, data);
       console.log('🏪 ShopApi: Update shop response:', response.data);
+
+      if (response.data.success && response.data.data) {
+        return {
+          success: true,
+          data: this.mapToShopProfile(response.data.data)
+        };
+      }
+
       return response.data;
     } catch (error: any) {
       console.error('🏪 ShopApi: Update shop error:', error);
@@ -173,14 +217,21 @@ class ShopApi {
 
   // Upload shop images
   async uploadShopImages(shopId: string, images: {
-    logo?: string;
-    coverImage?: string;
-    gallery?: string[];
+    imageUrl?: string;
+    coverImageUrl?: string;
   }): Promise<BaseResponse<ShopProfile>> {
     try {
       console.log('🏪 ShopApi: Uploading shop images...', { shopId, images });
-      const response = await apiClient.post(`/shops/${shopId}/images`, images);
+      const response = await apiClient.put(`/shops/${shopId}`, images);
       console.log('🏪 ShopApi: Upload images response:', response.data);
+
+      if (response.data.success && response.data.data) {
+        return {
+          success: true,
+          data: this.mapToShopProfile(response.data.data)
+        };
+      }
+
       return response.data;
     } catch (error: any) {
       console.error('🏪 ShopApi: Upload images error:', error);
@@ -188,12 +239,20 @@ class ShopApi {
     }
   }
 
-  // Update shop status
-  async updateShopStatus(shopId: string, status: 'open' | 'closed' | 'busy'): Promise<BaseResponse<ShopProfile>> {
+  // Update shop status (active/inactive)
+  async updateShopStatus(shopId: string, isActive: boolean): Promise<BaseResponse<ShopProfile>> {
     try {
-      console.log('🏪 ShopApi: Updating shop status...', { shopId, status });
-      const response = await apiClient.put(`/shops/${shopId}/status`, { status });
+      console.log('🏪 ShopApi: Updating shop status...', { shopId, isActive });
+      const response = await apiClient.put(`/shops/${shopId}`, { isActive });
       console.log('🏪 ShopApi: Update status response:', response.data);
+
+      if (response.data.success && response.data.data) {
+        return {
+          success: true,
+          data: this.mapToShopProfile(response.data.data)
+        };
+      }
+
       return response.data;
     } catch (error: any) {
       console.error('🏪 ShopApi: Update status error:', error);
@@ -220,6 +279,14 @@ class ShopApi {
       console.log('🏪 ShopApi: Getting shop by ID...', shopId);
       const response = await apiClient.get(`/shops/${shopId}`);
       console.log('🏪 ShopApi: Get shop by ID response:', response.data);
+
+      if (response.data.success && response.data.data) {
+        return {
+          success: true,
+          data: this.mapToShopProfile(response.data.data)
+        };
+      }
+
       return response.data;
     } catch (error: any) {
       console.error('🏪 ShopApi: Get shop by ID error:', error);
@@ -241,6 +308,22 @@ class ShopApi {
       console.log('🏪 ShopApi: Getting all shops...', params);
       const response = await apiClient.get('/shops', { params });
       console.log('🏪 ShopApi: All shops response:', response.data);
+
+      if (response.data.success && Array.isArray(response.data.data)) {
+        const shops = response.data.data.map((shop: ShopApiResponse) => this.mapToShopProfile(shop));
+
+        return {
+          success: true,
+          data: {
+            shops,
+            total: response.data.total || shops.length,
+            page: response.data.page || 1,
+            limit: params?.limit || 10,
+            totalPages: response.data.pages || 1
+          }
+        };
+      }
+
       return response.data;
     } catch (error: any) {
       console.error('🏪 ShopApi: Get all shops error:', error);
@@ -266,6 +349,8 @@ class ShopApi {
       throw error;
     }
   }
+
+  
 }
 
 export const shopApi = new ShopApi();

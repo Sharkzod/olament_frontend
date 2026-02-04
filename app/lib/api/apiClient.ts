@@ -1,9 +1,9 @@
 // lib/api/apiClient.ts
 import axios from 'axios';
 
-// const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://olament-backend-2.onrender.com/api';
+// const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://olament-backend-2.onrender.com/api';
 
 // Get token from localStorage
 export const getAuthToken = (): string | null => {

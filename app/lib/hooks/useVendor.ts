@@ -1,13 +1,13 @@
 // lib/hooks/useVendor.ts - FIXED VERSION
 import { useState, useCallback } from 'react';
-import { 
-  vendorApi, 
-  Shop, 
-  VendorProfile, 
-  CreateShopData, 
-  UpdateShopData, 
-  UpdateVendorProfileData, 
-  VendorStats 
+import {
+  vendorApi,
+  Shop,
+  VendorProfile,
+  CreateShopData,
+  UpdateShopData,
+  UpdateVendorProfileData,
+  VendorStats
 } from '../api/vendorApi';
 
 interface UseVendorReturn {
@@ -17,11 +17,12 @@ interface UseVendorReturn {
   stats: VendorStats | null;
   loading: boolean;
   error: string | null;
-  
+  createVendor: (data: any) => Promise<{ success: boolean; vendor?: any; error?: string }>;
+
   // Profile Management
   getVendorProfile: () => Promise<{ success: boolean; profile?: VendorProfile; error?: string }>;
   updateVendorProfile: (data: UpdateVendorProfileData) => Promise<{ success: boolean; profile?: VendorProfile; error?: string }>;
-  
+
   // Shop Management
   getShopsByOwnerId: (ownerId: string) => Promise<{ success: boolean; shops?: Shop[]; error?: string }>;
   getVendorStats: () => Promise<{ success: boolean; stats?: VendorStats; error?: string }>;
@@ -41,33 +42,94 @@ export const useVendor = (): UseVendorReturn => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Get vendor profile
-  const getVendorProfile = useCallback(async (): Promise<{ success: boolean; profile?: VendorProfile; error?: string }> => {
+
+  const createVendor = useCallback(async (data: any): Promise<{ success: boolean; vendor?: any; error?: string }> => {
     setLoading(true);
     setError(null);
 
     try {
-      console.log('👨‍💼 useVendor: Getting vendor profile...');
-      const response = await vendorApi.getVendorProfile();
-      
-      if (response.success) {
-        console.log('👨‍💼 useVendor: Profile fetched successfully');
-        setVendorProfile(response.data);
-        return { success: true, profile: response.data };
+      console.log('👨‍💼 useVendor: Creating vendor account...', data);
+
+      // You'll need to create this endpoint in your API
+      const response = await fetch('/api/vendors', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        console.log('👨‍💼 useVendor: Vendor account created successfully');
+        return { success: true, vendor: result.vendor };
       } else {
-        const errorMsg = response.message || 'Failed to fetch profile';
+        const errorMsg = result.message || 'Failed to create vendor account';
         setError(errorMsg);
         return { success: false, error: errorMsg };
       }
     } catch (err: any) {
-      console.error('👨‍💼 useVendor: Error fetching profile:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch profile';
+      console.error('👨‍💼 useVendor: Error creating vendor account:', err);
+      const errorMessage = err.message || 'Failed to create vendor account';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // Get vendor profile
+  const getVendorProfile = async () => {
+    setLoading(true);
+    try {
+      const response = await vendorApi.getVendorProfile();
+
+      console.log('Hook received response:', response);
+
+      // Response is { success: true, data: { businessName: "", ... } }
+      if (response.success && response.data) {
+        const vendorData = {
+          ...response.data,
+          // Ensure shops array exists with proper structure
+          shops: (response.data.shops || []).map(shop => ({
+            ...shop,
+            // Add missing fields that your UI expects
+            isActive: shop.isActive !== undefined ? shop.isActive : true,
+            productsCount: shop.productsCount || 0,
+            totalReviews: shop.totalReviews || 0,
+            address: shop.address || '',
+            description: shop.description || '',
+            marketId: shop.marketId || null,
+            // Use _id as id if not present
+            id: shop.id || shop._id
+          }))
+        };
+
+        console.log('Setting vendor profile:', vendorData);
+        setVendorProfile(vendorData);
+        return { success: true, profile: vendorData };
+      } else {
+        console.log('No vendor profile found');
+        setVendorProfile(null);
+        return { success: true, profile: null };
+      }
+    } catch (error: any) {
+      console.error('Failed to get vendor profile:', error);
+
+      // Check if it's a 404 (profile doesn't exist)
+      if (error.response?.status === 404) {
+        console.log('Vendor profile not found (404)');
+        setVendorProfile(null);
+        return { success: true, profile: null };
+      }
+
+      setError(error.message || 'Failed to load vendor profile');
+      return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Get shops by owner ID
   const getShopsByOwnerId = useCallback(async (ownerId: string): Promise<{ success: boolean; shops?: Shop[]; error?: string }> => {
@@ -77,7 +139,7 @@ export const useVendor = (): UseVendorReturn => {
     try {
       console.log('👨‍💼 useVendor: Getting shops by owner ID...', ownerId);
       const response = await vendorApi.getShopsByOwnerId(ownerId);
-      
+
       if (response.success) {
         console.log('👨‍💼 useVendor: Shops fetched successfully:', response.data.length);
         setShops(response.data);
@@ -103,21 +165,21 @@ export const useVendor = (): UseVendorReturn => {
     setError(null);
 
     try {
-      console.log('👨‍💼 useVendor: Updating vendor profile...', data);
+      console.log('👨‍💼 useVendor: Updating/creating vendor profile...', data);
       const response = await vendorApi.updateVendorProfile(data);
-      
+
       if (response.success) {
-        console.log('👨‍💼 useVendor: Profile updated successfully');
+        console.log('👨‍💼 useVendor: Profile saved successfully');
         setVendorProfile(response.data);
         return { success: true, profile: response.data };
       } else {
-        const errorMsg = response.message || 'Failed to update profile';
+        const errorMsg = response.message || 'Failed to save profile';
         setError(errorMsg);
         return { success: false, error: errorMsg };
       }
     } catch (err: any) {
-      console.error('👨‍💼 useVendor: Error updating profile:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to update profile';
+      console.error('👨‍💼 useVendor: Error saving profile:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to save profile';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -147,11 +209,11 @@ export const useVendor = (): UseVendorReturn => {
         thisMonthOrders: 0,
         thisMonthRevenue: 0
       };
-      
+
       console.log('👨‍💼 useVendor: Using mock stats for now');
       setStats(mockStats);
       return { success: true, stats: mockStats };
-      
+
       // If you uncomment the endpoint in vendorApi.ts, use this instead:
       // const response = await vendorApi.getVendorStats();
       // if (response.success) {
@@ -181,7 +243,7 @@ export const useVendor = (): UseVendorReturn => {
     try {
       console.log('👨‍💼 useVendor: Creating shop...', data);
       const response = await vendorApi.createShop(data);
-      
+
       if (response.success) {
         console.log('👨‍💼 useVendor: Shop created successfully');
         // Add new shop to the list
@@ -212,11 +274,11 @@ export const useVendor = (): UseVendorReturn => {
     try {
       console.log('👨‍💼 useVendor: Updating shop...', shopId, data);
       const response = await vendorApi.updateShop(shopId, data);
-      
+
       if (response.success) {
         console.log('👨‍💼 useVendor: Shop updated successfully');
         // Update shop in the list
-        setShops(prev => prev.map(shop => 
+        setShops(prev => prev.map(shop =>
           shop._id === shopId ? response.data : shop
         ));
         return { success: true, shop: response.data };
@@ -243,7 +305,7 @@ export const useVendor = (): UseVendorReturn => {
     try {
       console.log('👨‍💼 useVendor: Deleting shop...', shopId);
       const response = await vendorApi.deleteShop(shopId);
-      
+
       if (response.success) {
         console.log('👨‍💼 useVendor: Shop deleted successfully');
         // Remove shop from the list
@@ -274,11 +336,11 @@ export const useVendor = (): UseVendorReturn => {
     try {
       console.log('👨‍💼 useVendor: Toggling shop status...', shopId, isActive);
       const response = await vendorApi.toggleShopStatus(shopId, isActive);
-      
+
       if (response.success) {
         console.log('👨‍💼 useVendor: Shop status updated successfully');
         // Update shop in the list
-        setShops(prev => prev.map(shop => 
+        setShops(prev => prev.map(shop =>
           shop._id === shopId ? response.data : shop
         ));
         return { success: true, shop: response.data };
@@ -305,7 +367,7 @@ export const useVendor = (): UseVendorReturn => {
     try {
       console.log('👨‍💼 useVendor: Getting shop details...', shopId);
       const response = await vendorApi.getShopDetails(shopId);
-      
+
       if (response.success) {
         console.log('👨‍💼 useVendor: Shop details fetched successfully');
         return { success: true, shop: response.data };
@@ -349,6 +411,7 @@ export const useVendor = (): UseVendorReturn => {
     stats,
     loading,
     error,
+    createVendor,
     getVendorProfile,
     updateVendorProfile,
     getShopsByOwnerId, // Changed from getMyShops

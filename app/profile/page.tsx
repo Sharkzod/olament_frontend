@@ -1,1153 +1,1014 @@
-// app/profile/page.tsx - Complete Integrated Version
-'use client'
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation'
-import { 
-  User, Store, Camera, Save, MapPin, Phone, Mail, Globe, 
-  Upload, Edit, CheckCircle, X, LogOut, Shield, Clock,
-  Package, ShoppingBag, TrendingUp, Star
-} from 'lucide-react';
-import { useAuth } from '../lib/hooks/useAuthApi';
-import { useProfile } from '../lib/hooks/useProfile';
-import { useShop } from '../lib/hooks/useShop';
-import ProtectedRoute from '@/app/components/ProtectedRoute';
+'use client';
 
-interface ShopProfile {
-  _id?: string;
-  shopName: string;
-  description: string;
-  category: string;
-  logo: string;
-  coverImage: string;
-  address: {
-    street: string;
-    city: string;
-    state: string;
-    country: string;
-    zipCode: string;
-  };
-  contact: {
-    phone: string;
-    email: string;
-    website: string;
-  };
-  businessHours: {
-    monday: { open: string; close: string };
-    tuesday: { open: string; close: string };
-    wednesday: { open: string; close: string };
-    thursday: { open: string; close: string };
-    friday: { open: string; close: string };
-    saturday: { open: string; close: string };
-    sunday: { open: string; close: string };
-  };
-  deliveryOptions: {
-    deliveryAvailable: boolean;
-    pickupAvailable: boolean;
-    deliveryRadius: number;
-    deliveryFee: number;
-    minOrderAmount: number;
-  };
-  status: 'open' | 'closed' | 'busy';
-  verificationStatus: 'verified' | 'pending' | 'unverified';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Globe,
+  FileText,
+  Award,
+  Calendar,
+  Edit2,
+  Save,
+  X,
+  Building,
+  Store,
+  CheckCircle,
+  AlertCircle,
+  CreditCard,
+  Star,
+  Loader2
+} from 'lucide-react';
+import { useProfile, Address, BusinessAddress, UpdateProfileData } from '../lib/hooks/useProfile';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface FormData {
+  name: string;
+  phone: string;
+  address: Address;
+  avatar: string;
+  businessName: string;
+  businessDescription: string;
+  businessAddress: BusinessAddress;
+  businessPhone: string;
+  businessEmail: string;
+  businessWebsite: string;
+  taxId: string;
+  businessRegistration: string;
+  yearsInBusiness: number;
+  businessLogo: string;
 }
 
-const categories = [
-  'Electronics',
-  'Groceries',
-  'Clothing & Fashion',
-  'Home & Kitchen',
-  'Beauty & Personal Care',
-  'Books & Stationery',
-  'Sports & Fitness',
-  'Automotive',
-  'Health & Wellness',
-  'Food & Beverages',
-  'Pets & Animals',
-  'Toys & Games'
-];
+type TabType = 'personal' | 'business';
 
-function ProfilePageContent() {
-  const { 
-    isAuthenticated, 
-    isLoading: authLoading,
-    logout 
-  } = useAuth();
-  
-  const { 
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const EMPTY_ADDRESS: Address = {
+  street: '',
+  city: '',
+  state: '',
+  country: '',
+  zipCode: ''
+};
+
+const initialFormData: FormData = {
+  name: '',
+  phone: '',
+  address: EMPTY_ADDRESS,
+  avatar: '',
+  businessName: '',
+  businessDescription: '',
+  businessAddress: EMPTY_ADDRESS,
+  businessPhone: '',
+  businessEmail: '',
+  businessWebsite: '',
+  taxId: '',
+  businessRegistration: '',
+  yearsInBusiness: 0,
+  businessLogo: ''
+};
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
+
+export default function ProfilePage() {
+  const router = useRouter();
+  const {
     profile,
-    loading: profileLoading,
-    error: profileError,
+    loading,
+    error,
     updateProfile,
-    uploadAvatar,
-    getProfile
+    clearError,
+    formatAddress
   } = useProfile();
-  
-  const { 
-  shop, 
-  loading: shopLoading, // ✅ FIXED: changed from isLoading to loading
-  getMyShop, 
-  createShop, 
-  updateShop,
-  uploadShopImages, // ✅ Added this missing function
-  error: shopError 
-} = useShop();
-  
-  const [activeSection, setActiveSection] = useState<'user' | 'shop'>('user');
-  const [isEditingUser, setIsEditingUser] = useState(false);
-  const [isEditingShop, setIsEditingShop] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [shopLogo, setShopLogo] = useState<string | null>(null);
-  const [shopCover, setShopCover] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+
+  // Local state
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>('personal');
+  const [formData, setFormData] = useState<FormData>(initialFormData);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // User profile form state
-  const [userFormData, setUserFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    avatar: 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
-    role: 'Buyer',
-    joinDate: new Date().toISOString().split('T')[0],
-    emailVerified: false,
-    phoneVerified: false
-  });
+  // ============================================================================
+  // EFFECTS
+  // ============================================================================
 
-  const [shopProfile, setShopProfile] = useState<ShopProfile | null>(null);
-  const router = useRouter();
-
-  // Initialize user form data when profile loads
+  // Initialize form data when profile loads or changes
   useEffect(() => {
     if (profile) {
-      console.log('👤 Profile Page: Profile data received:', profile);
-      setUserFormData({
-        firstName: profile.firstName || '',
-        lastName: profile.lastName || '',
-        email: profile.email || '',
-        phone: profile.phone || '',
-        avatar: profile.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
-        role: profile.role?.charAt(0).toUpperCase() + profile.role?.slice(1) || 'Buyer',
-        joinDate: new Date(profile.createdAt).toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
-        emailVerified: profile.emailVerified || false,
-        phoneVerified: profile.phoneVerified || false
-      });
-      setProfileImage(profile.avatar);
+      initializeFormData();
     }
   }, [profile]);
 
-  // Fetch shop data when user is a seller
+  // Auto-dismiss success message
   useEffect(() => {
-    if (profile?.role === 'seller') {
-      console.log('🏪 Profile Page: Fetching shop data for seller');
-      getMyShop();
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(null), 5000);
+      return () => clearTimeout(timer);
     }
-  }, [profile?.role, getMyShop]);
+  }, [successMessage]);
 
-  // Update shop profile when shop data changes
-  useEffect(() => {
-    if (shop) {
-      console.log('🏪 Profile Page: Shop data received:', shop);
-      setShopProfile(shop);
-      setShopLogo(shop.logo);
-      setShopCover(shop.coverImage);
-    } else {
-      console.log('🏪 Profile Page: No shop data');
-      setShopProfile(null);
-    }
-  }, [shop]);
+  // ============================================================================
+  // HANDLERS
+  // ============================================================================
 
-  // Handle user input changes
-  const handleUserInputChange = (field: keyof typeof userFormData, value: string) => {
-    setUserFormData(prev => ({
+  const initializeFormData = useCallback(() => {
+    if (!profile) return;
+
+    setFormData({
+      // Personal info
+      name: profile.name || '',
+      phone: profile.phone || '',
+      address: profile.address || EMPTY_ADDRESS,
+      avatar: profile.avatar || '',
+      
+      // Business info - check both vendorProfile and root level
+      businessName: profile.vendorProfile?.businessName || profile.businessName || '',
+      businessDescription: profile.vendorProfile?.businessDescription || profile.businessDescription || '',
+      businessAddress: profile.vendorProfile?.businessAddress || profile.address || EMPTY_ADDRESS,
+      businessPhone: profile.vendorProfile?.businessPhone || profile.phone || '',
+      businessEmail: profile.vendorProfile?.businessEmail || profile.email || '',
+      businessWebsite: profile.vendorProfile?.businessWebsite || '',
+      taxId: profile.vendorProfile?.taxId || '',
+      businessRegistration: profile.vendorProfile?.businessRegistration || '',
+      yearsInBusiness: profile.vendorProfile?.yearsInBusiness || 0,
+      businessLogo: profile.vendorProfile?.businessLogo || profile.businessLogo || ''
+    });
+  }, [profile]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
       ...prev,
-      [field]: value
+      [name]: value
     }));
   };
 
-  // Shop-related handlers (same as your original)
-  const handleShopInputChange = (field: keyof ShopProfile, value: any) => {
-    if (shopProfile) {
-      setShopProfile(prev => ({
-        ...prev!,
-        [field]: value
-      }));
-    }
-  };
-
-  const handleAddressChange = (field: keyof ShopProfile['address'], value: string) => {
-    if (shopProfile) {
-      setShopProfile(prev => ({
-        ...prev!,
-        address: {
-          ...prev!.address,
-          [field]: value
-        }
-      }));
-    }
-  };
-
-  const handleContactChange = (field: keyof ShopProfile['contact'], value: string) => {
-    if (shopProfile) {
-      setShopProfile(prev => ({
-        ...prev!,
-        contact: {
-          ...prev!.contact,
-          [field]: value
-        }
-      }));
-    }
-  };
-
-  const handleBusinessHoursChange = (day: keyof ShopProfile['businessHours'], type: 'open' | 'close', value: string) => {
-    if (shopProfile) {
-      setShopProfile(prev => ({
-        ...prev!,
-        businessHours: {
-          ...prev!.businessHours,
-          [day]: {
-            ...prev!.businessHours[day],
-            [type]: value
-          }
-        }
-      }));
-    }
-  };
-
-  const handleDeliveryOptionChange = (field: keyof ShopProfile['deliveryOptions'], value: any) => {
-    if (shopProfile) {
-      setShopProfile(prev => ({
-        ...prev!,
-        deliveryOptions: {
-          ...prev!.deliveryOptions,
-          [field]: value
-        }
-      }));
-    }
-  };
-
-  // Handle image upload
- 
-
-  // Handle save user profile
-  const handleSaveUserProfile = async () => {
-    try {
-      setIsSaving(true);
-      setError(null);
-      setSuccessMessage(null);
-
-      const updateData = {
-        firstName: userFormData.firstName,
-        lastName: userFormData.lastName,
-        email: userFormData.email,
-        phone: userFormData.phone,
-        avatar: profileImage || userFormData.avatar
-      };
-
-      console.log('💾 Saving user profile:', updateData);
-      const result = await updateProfile(updateData);
-      
-      if (result.success) {
-        setSuccessMessage('Profile updated successfully!');
-        setIsEditingUser(false);
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } else {
-        setError(result.error || 'Failed to update profile');
-      }
-    } catch (err: any) {
-      console.error('Error updating profile:', err);
-      setError(err.message || 'Failed to update profile');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // In your profile page, update the handleSaveShopProfile function:
-const handleSaveShopProfile = async () => {
-    if (!shopProfile) return;
-
-    try {
-      setIsSaving(true);
-      setError(null);
-      setSuccessMessage(null);
-
-      console.log('💾 Saving shop profile:', shopProfile);
-      let result;
-      
-      if (shopProfile._id) {
-        // Update existing shop
-        result = await updateShop(shopProfile._id, {
-          shopName: shopProfile.shopName,
-          description: shopProfile.description,
-          category: shopProfile.category,
-          logo: shopLogo || shopProfile.logo,
-          coverImage: shopCover || shopProfile.coverImage,
-          address: shopProfile.address,
-          contact: shopProfile.contact,
-          businessHours: shopProfile.businessHours,
-          deliveryOptions: shopProfile.deliveryOptions,
-          status: shopProfile.status,
-          verificationStatus: shopProfile.verificationStatus
-        });
-      } else {
-        // Create new shop
-        result = await createShop({
-          shopName: shopProfile.shopName,
-          description: shopProfile.description,
-          category: shopProfile.category,
-          logo: shopProfile.logo,
-          coverImage: shopProfile.coverImage,
-          address: shopProfile.address,
-          contact: shopProfile.contact,
-          businessHours: shopProfile.businessHours,
-          deliveryOptions: shopProfile.deliveryOptions
-        });
-      }
-      
-      if (result.success) {
-        setSuccessMessage(shopProfile._id ? 'Shop updated successfully!' : 'Shop created successfully!');
-        setIsEditingShop(false);
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } else {
-        setError(result.error || 'Failed to save shop');
-      }
-    } catch (err: any) {
-      console.error('Error saving shop profile:', err);
-      setError(err.message || 'Failed to save shop');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'profile' | 'logo' | 'cover') => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Image size should be less than 5MB');
-      return;
-    }
-
-    if (!file.type.startsWith('image/')) {
-      setError('Please upload an image file');
-      return;
-    }
-
-    try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64Image = reader.result as string;
-        
-        if (type === 'profile') {
-          setProfileImage(base64Image);
-          try {
-            const result = await uploadAvatar(base64Image);
-            if (result.success) {
-              setSuccessMessage('Profile image updated!');
-              setTimeout(() => setSuccessMessage(null), 3000);
-            } else {
-              setError(result.error || 'Failed to upload image');
-            }
-          } catch (err: any) {
-            setError('Failed to upload image');
-          }
-        } else if (type === 'logo' && shopProfile?._id) {
-          // Upload shop logo
-          try {
-            const result = await uploadShopImages(shopProfile._id, { logo: base64Image });
-            if (result.success) {
-              setShopLogo(base64Image);
-              setSuccessMessage('Shop logo updated!');
-              setTimeout(() => setSuccessMessage(null), 3000);
-            } else {
-              setError(result.error || 'Failed to upload logo');
-            }
-          } catch (err: any) {
-            setError('Failed to upload logo');
-          }
-        } else if (type === 'cover' && shopProfile?._id) {
-          // Upload shop cover
-          try {
-            const result = await uploadShopImages(shopProfile._id, { coverImage: base64Image });
-            if (result.success) {
-              setShopCover(base64Image);
-              setSuccessMessage('Cover image updated!');
-              setTimeout(() => setSuccessMessage(null), 3000);
-            } else {
-              setError(result.error || 'Failed to upload cover image');
-            }
-          } catch (err: any) {
-            setError('Failed to upload cover image');
-          }
-        }
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
-      console.error('Error reading file:', err);
-      setError('Failed to upload image');
-    }
-  };
-
-  const handleCreateShop = () => {
-    const newShop: ShopProfile = {
-      shopName: `${userFormData.firstName}'s Shop`,
-      description: 'Welcome to my shop!',
-      category: categories[0],
-      logo: 'https://cdn-icons-png.flaticon.com/512/891/891419.png',
-      coverImage: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=1200&q=80',
+  const handleAddressChange = (field: keyof Address, value: string) => {
+    setFormData(prev => ({
+      ...prev,
       address: {
-        street: '',
-        city: '',
-        state: '',
-        country: 'Nigeria',
-        zipCode: ''
-      },
-      contact: {
-        phone: userFormData.phone || '',
-        email: userFormData.email || '',
-        website: ''
-      },
-      businessHours: {
-        monday: { open: '08:00', close: '20:00' },
-        tuesday: { open: '08:00', close: '20:00' },
-        wednesday: { open: '08:00', close: '20:00' },
-        thursday: { open: '08:00', close: '20:00' },
-        friday: { open: '08:00', close: '21:00' },
-        saturday: { open: '09:00', close: '18:00' },
-        sunday: { open: '10:00', close: '16:00' }
-      },
-      deliveryOptions: {
-        deliveryAvailable: false,
-        pickupAvailable: false,
-        deliveryRadius: 5,
-        deliveryFee: 0,
-        minOrderAmount: 0
-      },
-      status: 'open',
-      verificationStatus: 'unverified'
-    };
-    
-    setShopProfile(newShop);
-    setActiveSection('shop');
-    setIsEditingShop(true);
+        ...prev.address,
+        [field]: value
+      }
+    }));
   };
 
-  const getStatusColor = (status: ShopProfile['status']) => {
-    switch (status) {
-      case 'open': return 'text-green-600 bg-green-100';
-      case 'closed': return 'text-red-600 bg-red-100';
-      case 'busy': return 'text-yellow-600 bg-yellow-100';
-      default: return 'text-gray-600 bg-gray-100';
+  const handleBusinessAddressChange = (field: keyof BusinessAddress, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      businessAddress: {
+        ...prev.businessAddress,
+        [field]: value
+      }
+    }));
+  };
+
+  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: parseInt(value) || 0
+    }));
+  };
+
+  const handleSaveProfile = async () => {
+    if (!profile) return;
+
+    try {
+      setSaving(true);
+      clearError();
+      setSuccessMessage(null);
+
+      // Build update payload
+      const updateData: UpdateProfileData = {
+        name: formData.name,
+        phone: formData.phone,
+        address: formData.address,
+        avatar: formData.avatar
+      };
+
+      // Add business info if user is a vendor
+      if (profile.role === 'vendor') {
+        updateData.businessInfo = {
+          businessName: formData.businessName,
+          businessDescription: formData.businessDescription,
+          businessAddress: formData.businessAddress,
+          businessPhone: formData.businessPhone,
+          businessEmail: formData.businessEmail,
+          businessWebsite: formData.businessWebsite,
+          taxId: formData.taxId,
+          businessRegistration: formData.businessRegistration,
+          yearsInBusiness: formData.yearsInBusiness,
+          businessLogo: formData.businessLogo
+        };
+      }
+
+      // Call the hook's updateProfile function
+      const result = await updateProfile(updateData);
+
+      if (result.success) {
+        setEditing(false);
+        setSuccessMessage('Profile updated successfully!');
+        // Form data will be re-initialized by the useEffect when profile updates
+      } else {
+        // Error is already set by the hook
+        console.error('Update failed:', result.error);
+      }
+    } catch (err) {
+      console.error('Unexpected error during profile update:', err);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const getVerificationColor = (status: ShopProfile['verificationStatus']) => {
-    switch (status) {
-      case 'verified': return 'text-green-600 bg-green-100';
-      case 'pending': return 'text-yellow-600 bg-yellow-100';
-      case 'unverified': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
+  const handleCancelEdit = () => {
+    initializeFormData();
+    setEditing(false);
+    clearError();
+    setSuccessMessage(null);
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return dateString;
     }
   };
 
-  // Show loading state
-  if (authLoading || profileLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading profile...</p>
+  // ============================================================================
+  // RENDER HELPERS
+  // ============================================================================
+
+  const renderLoadingState = () => (
+    <section className="mt-6 text-black px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center py-12 sm:py-16">
+          <div className="flex flex-col items-center">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600 mb-3" />
+            <p className="text-gray-600">Loading profile...</p>
+          </div>
         </div>
       </div>
-    );
-  }
+    </section>
+  );
 
-  // Show login prompt if not authenticated
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-8">
-          <User className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Please Log In</h2>
-          <p className="text-gray-600 mb-6">You need to be logged in to view your profile.</p>
+  const renderErrorState = () => (
+    <section className="mt-6 text-black px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 sm:p-6">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0" />
+            <p className="text-red-700 text-sm flex-1">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="ml-4 text-red-600 hover:text-red-800 text-sm font-medium whitespace-nowrap"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderEmptyState = () => (
+    <section className="mt-6 text-black px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center py-12 sm:py-16 bg-white rounded-xl border border-gray-200">
+          <User className="h-16 w-16 sm:h-20 sm:w-20 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg sm:text-xl font-bold text-gray-700">No profile found</h3>
+          <p className="text-gray-500 mt-2">Unable to load your profile information</p>
           <button
-            onClick={() => router.push('/login')}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            onClick={() => window.location.reload()}
+            className="mt-6 px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
           >
-            Go to Login
+            Reload Profile
           </button>
         </div>
       </div>
-    );
-  }
+    </section>
+  );
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
-          <div className="flex-1 text-center md:text-left">
-            <div className="flex items-center justify-between gap-3 p-4 border-b border-gray-100 bg-white">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => router.push('/dashboard')}
-                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="black" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <div>
-                  <h1 className="text-lg font-medium text-gray-900">Profile Settings</h1>
-                  <p className="text-xs text-gray-500">Welcome, {userFormData.firstName}</p>
-                </div>
-              </div>
-              <button
-                onClick={logout}
-                className="flex items-center gap-2 text-sm text-red-600 hover:text-red-800 transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Error and Success Messages */}
-      {(error || successMessage || shopError || profileError) && (
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 pt-4">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
-              <span>{error}</span>
-              <button onClick={() => setError(null)} className="text-red-700 hover:text-red-900">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-          {shopError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
-              <span>{shopError}</span>
-              <button onClick={() => {}} className="text-red-700 hover:text-red-900">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-          {profileError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
-              <span>{profileError}</span>
-              <button onClick={() => {}} className="text-red-700 hover:text-red-900">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-          {successMessage && (
-            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
-              <span>{successMessage}</span>
-              <button onClick={() => setSuccessMessage(null)} className="text-green-700 hover:text-green-900">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      <main className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 md:py-8">
-        {/* Tab Navigation */}
-        <div className="block md:block mb-6 md:mb-8">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-6 lg:space-x-8">
-              <button
-                onClick={() => setActiveSection('user')}
-                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
-                  activeSection === 'user'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <User className="h-4 w-4 inline-block mr-2" />
-                Personal Profile
-              </button>
-              <button
-                onClick={() => setActiveSection('shop')}
-                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
-                  activeSection === 'shop'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <Store className="h-4 w-4 inline-block mr-2" />
-                Shop Profile
-              </button>
-            </nav>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
-          {/* Left Column - User Stats */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
-              <div className="text-center mb-6">
-                <div className="h-24 w-24 md:h-32 md:w-32 mx-auto rounded-full overflow-hidden border-4 border-white shadow-lg mb-4">
-                  <img 
-                    src={profileImage || userFormData.avatar} 
-                    alt="Profile" 
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {userFormData.firstName} {userFormData.lastName}
-                </h3>
-                <p className="text-sm text-gray-600 capitalize">{userFormData.role.toLowerCase()}</p>
-                <p className="text-xs text-gray-500 mt-1">Joined {userFormData.joinDate}</p>
-              </div>
-
-              {/* User Stats */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center">
-                    <Package className="h-5 w-5 text-blue-500 mr-3" />
-                    <span className="text-sm text-gray-700">Total Orders</span>
-                  </div>
-                  <span className="font-semibold">0</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center">
-                    <ShoppingBag className="h-5 w-5 text-green-500 mr-3" />
-                    <span className="text-sm text-gray-700">Active Listings</span>
-                  </div>
-                  <span className="font-semibold">0</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center">
-                    <Star className="h-5 w-5 text-yellow-500 mr-3" />
-                    <span className="text-sm text-gray-700">Reviews</span>
-                  </div>
-                  <span className="font-semibold">0</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center">
-                    <TrendingUp className="h-5 w-5 text-purple-500 mr-3" />
-                    <span className="text-sm text-gray-700">Total Sales</span>
-                  </div>
-                  <span className="font-semibold">₦0</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column - Dynamic Content */}
-          <div className="lg:col-span-2">
-            {activeSection === 'user' ? (
-              /* User Profile Section */
-              <div className="bg-white rounded-lg md:rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="px-4 md:px-6 py-3 md:py-4 border-b border-gray-200 bg-gray-50">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg md:text-xl font-bold text-gray-900">Personal Information</h2>
-                      <p className="text-xs md:text-sm text-gray-600 mt-1">Update your personal details</p>
-                    </div>
-                    <button
-                      onClick={() => isEditingUser ? handleSaveUserProfile() : setIsEditingUser(true)}
-                      disabled={isSaving || profileLoading}
-                      className="flex items-center justify-center gap-2 bg-gray-900 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base w-full sm:w-auto"
-                    >
-                      {isSaving ? (
-                        <>
-                          <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          {isEditingUser ? <Save className="h-4 w-4" /> : <Edit className="h-4 w-4" />}
-                          {isEditingUser ? 'Save Changes' : 'Edit Profile'}
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p-4 md:p-6">
-                  <div className="flex flex-col lg:flex-row gap-6 md:gap-8">
-                    {/* Profile Picture */}
-                    <div className="lg:w-1/3">
-                      <div className="space-y-4">
-                        <div className="relative group mx-auto max-w-[200px] lg:max-w-none">
-                          <div className="h-40 w-40 md:h-48 md:w-48 mx-auto rounded-full overflow-hidden border-4 border-white shadow-lg">
-                            <img 
-                              src={profileImage || userFormData.avatar} 
-                              alt="Profile" 
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                          {isEditingUser && (
-                            <label className="absolute inset-0 h-40 w-40 md:h-48 md:w-48 mx-auto rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => handleImageUpload(e, 'profile')}
-                              />
-                              <div className="text-white text-center p-2">
-                                <Camera className="h-6 w-6 md:h-8 md:w-8 mx-auto mb-1 md:mb-2" />
-                                <span className="text-xs md:text-sm">Change Photo</span>
-                              </div>
-                            </label>
-                          )}
-                        </div>
-                        <div className="text-center">
-                          <div className="flex items-center justify-center gap-2 mb-2">
-                            <Shield className={`h-4 w-4 ${userFormData.emailVerified ? 'text-green-500' : 'text-gray-400'}`} />
-                            <span className={`text-xs ${userFormData.emailVerified ? 'text-green-600' : 'text-gray-500'}`}>
-                              {userFormData.emailVerified ? 'Email Verified' : 'Email Not Verified'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Profile Form */}
-                    <div className="lg:w-2/3">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-gray-700">First Name *</label>
-                          <input
-                            type="text"
-                            value={userFormData.firstName}
-                            onChange={(e) => handleUserInputChange('firstName', e.target.value)}
-                            disabled={!isEditingUser}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-gray-700">Last Name *</label>
-                          <input
-                            type="text"
-                            value={userFormData.lastName}
-                            onChange={(e) => handleUserInputChange('lastName', e.target.value)}
-                            disabled={!isEditingUser}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                          />
-                        </div>
-
-                        <div className="sm:col-span-2 space-y-2">
-                          <label className="text-sm font-medium text-gray-700">Email Address *</label>
-                          <div className="relative">
-                            <input
-                              type="email"
-                              value={userFormData.email}
-                              onChange={(e) => handleUserInputChange('email', e.target.value)}
-                              disabled={!isEditingUser}
-                              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                            />
-                            {userFormData.emailVerified && (
-                              <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500">
-                                <CheckCircle className="h-4 w-4 md:h-5 md:w-5" />
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="sm:col-span-2 space-y-2">
-                          <label className="text-sm font-medium text-gray-700">Phone Number</label>
-                          <div className="relative">
-                            <input
-                              type="tel"
-                              value={userFormData.phone}
-                              onChange={(e) => handleUserInputChange('phone', e.target.value)}
-                              disabled={!isEditingUser}
-                              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                            />
-                            {userFormData.phoneVerified && (
-                              <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500">
-                                <CheckCircle className="h-4 w-4 md:h-5 md:w-5" />
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+  const renderProfileOverview = () => (
+    <div className="bg-white rounded-xl border border-gray-200 p-6">
+      {/* Avatar & Status */}
+      <div className="flex flex-col items-center mb-6">
+        <div className="relative mb-4">
+          <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+            {profile?.avatar ? (
+              <img
+                src={profile.avatar}
+                alt={profile.name}
+                className="w-full h-full object-cover"
+              />
             ) : (
-              /* Shop Profile Section */
-              <div className="bg-white rounded-lg md:rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="px-4 md:px-6 py-3 md:py-4 border-b border-gray-200 bg-gray-50">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg md:text-xl font-bold text-gray-900">Shop Information</h2>
-                      <p className="text-xs md:text-sm text-gray-600 mt-1">
-                        {shopProfile ? 'Manage your shop details' : 'Create your shop to start selling'}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      {shopProfile ? (
-                        <button
-                          onClick={() => isEditingShop ? handleSaveShopProfile() : setIsEditingShop(true)}
-                          disabled={isSaving || shopLoading}
-                          className="flex items-center justify-center gap-2 bg-gray-900 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
-                        >
-                          {isSaving ? (
-                            <>
-                              <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                              Saving...
-                            </>
-                          ) : (
-                            <>
-                              {isEditingShop ? <Save className="h-4 w-4" /> : <Edit className="h-4 w-4" />}
-                              {isEditingShop ? 'Save Changes' : 'Edit Shop'}
-                            </>
-                          )}
-                        </button>
-                      ) : (
-                        <button
-                          onClick={handleCreateShop}
-                          className="flex items-center justify-center gap-2 bg-blue-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm md:text-base"
-                        >
-                          <Store className="h-4 w-4" />
-                          Create Shop
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+              <User className="h-12 w-12 text-gray-400" />
+            )}
+          </div>
+          {profile?.isVerified && (
+            <div className="absolute bottom-2 right-2 bg-blue-500 text-white p-1 rounded-full">
+              <CheckCircle className="h-5 w-5" />
+            </div>
+          )}
+        </div>
+        <h2 className="text-xl font-bold text-gray-900">{profile?.name}</h2>
+        <div className="flex items-center gap-2 mt-1">
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+            profile?.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+          }`}>
+            {profile?.isActive ? 'ACTIVE' : 'INACTIVE'}
+          </span>
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            {profile?.role.toUpperCase()}
+          </span>
+        </div>
+      </div>
 
-                {shopProfile ? (
-                  <div className="p-4 md:p-6">
-                    {/* Shop Images */}
-                    <div className="space-y-4 md:space-y-6">
-                      {/* Cover Image */}
-                      <div className="relative group">
-                        <div className="h-36 md:h-48 lg:h-64 rounded-xl overflow-hidden bg-gray-200">
-                          <img 
-                            src={shopCover || shopProfile.coverImage} 
-                            alt="Shop Cover" 
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        {isEditingShop && (
-                          <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-xl">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => handleImageUpload(e, 'cover')}
-                            />
-                            <div className="text-white text-center p-2 md:p-4">
-                              <Upload className="h-6 w-6 md:h-8 md:w-8 mx-auto mb-1 md:mb-2" />
-                              <span className="text-xs md:text-sm">Change Cover Photo</span>
-                            </div>
-                          </label>
-                        )}
-                      </div>
+      {/* Account Info */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+          <Mail className="h-5 w-5 text-gray-400" />
+          <div>
+            <p className="text-xs text-gray-500">Email</p>
+            <p className="text-sm font-medium text-gray-900">{profile?.email}</p>
+          </div>
+        </div>
 
-                      {/* Logo */}
-                      <div className="flex items-end -mt-12 md:-mt-16 ml-4 md:ml-6 relative z-10">
-                        <div className="relative group">
-                          <div className="h-24 w-24 md:h-32 md:w-32 rounded-2xl overflow-hidden border-4 border-white shadow-lg bg-white">
-                            <img 
-                              src={shopLogo || shopProfile.logo} 
-                              alt="Shop Logo" 
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          {isEditingShop && (
-                            <label className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => handleImageUpload(e, 'logo')}
-                              />
-                              <div className="text-white text-center p-1 md:p-2">
-                                <Camera className="h-4 w-4 md:h-6 md:w-6 mx-auto mb-1" />
-                                <span className="text-xs">Change Logo</span>
-                              </div>
-                            </label>
-                          )}
-                        </div>
+        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+          <Calendar className="h-5 w-5 text-gray-400" />
+          <div>
+            <p className="text-xs text-gray-500">Member Since</p>
+            <p className="text-sm font-medium text-gray-900">
+              {profile?.createdAt ? formatDate(profile.createdAt) : 'N/A'}
+            </p>
+          </div>
+        </div>
 
-                        {/* Shop Status Badge */}
-                        <div className="ml-4 mb-2">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(shopProfile.status)}`}>
-                            {shopProfile.status.charAt(0).toUpperCase() + shopProfile.status.slice(1)}
-                          </span>
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ml-2 ${getVerificationColor(shopProfile.verificationStatus)}`}>
-                            {shopProfile.verificationStatus.charAt(0).toUpperCase() + shopProfile.verificationStatus.slice(1)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+        {profile?.role === 'vendor' && (profile.vendorProfile || profile.shops) && (
+          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+            <Store className="h-5 w-5 text-gray-400" />
+            <div>
+              <p className="text-xs text-gray-500">Active Shops</p>
+              <p className="text-sm font-medium text-gray-900">
+                {profile.vendorProfile?.shops?.length || profile.shops?.length || 0} shops
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
-                    {/* Shop Details Form */}
-                    <div className="mt-6 md:mt-8 space-y-4 md:space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-gray-700">Shop Name *</label>
-                          <input
-                            type="text"
-                            value={shopProfile.shopName}
-                            onChange={(e) => handleShopInputChange('shopName', e.target.value)}
-                            disabled={!isEditingShop}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:bg-gray-100"
-                          />
-                        </div>
+  const renderPersonalInfo = () => (
+    <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <User className="h-5 w-5 text-gray-400" />
+          Personal Information
+        </h3>
+        {!profile?.isVerified && (
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+            Not Verified
+          </span>
+        )}
+      </div>
 
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-gray-700">Category *</label>
-                          <select
-                            value={shopProfile.category}
-                            onChange={(e) => handleShopInputChange('category', e.target.value)}
-                            disabled={!isEditingShop}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:bg-gray-100"
-                          >
-                            {categories.map(cat => (
-                              <option key={cat} value={cat}>{cat}</option>
-                            ))}
-                          </select>
-                        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Name */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Full Name
+          </label>
+          {editing ? (
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter your full name"
+            />
+          ) : (
+            <div className="flex items-center gap-2 text-gray-900">
+              <User className="h-4 w-4 text-gray-400" />
+              <p className="text-sm">{profile?.name}</p>
+            </div>
+          )}
+        </div>
 
-                        <div className="md:col-span-2 space-y-2">
-                          <label className="text-sm font-medium text-gray-700">Description</label>
-                          <textarea
-                            value={shopProfile.description}
-                            onChange={(e) => handleShopInputChange('description', e.target.value)}
-                            disabled={!isEditingShop}
-                            rows={3}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:bg-gray-100 resize-none"
-                          />
-                        </div>
-                      </div>
+        {/* Phone */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Phone Number
+          </label>
+          {editing ? (
+            <input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleInputChange}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter your phone number"
+            />
+          ) : (
+            <div className="flex items-center gap-2 text-gray-900">
+              <Phone className="h-4 w-4 text-gray-400" />
+              <p className="text-sm">{profile?.phone || 'Not provided'}</p>
+            </div>
+          )}
+        </div>
 
-                      {/* Contact Information */}
-                      <div>
-                        <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Contact Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">Phone</label>
-                            <div className="flex items-center">
-                              <Phone className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
-                              <input
-                                type="tel"
-                                value={shopProfile.contact.phone}
-                                onChange={(e) => handleContactChange('phone', e.target.value)}
-                                disabled={!isEditingShop}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:bg-gray-100"
-                              />
-                            </div>
-                          </div>
+        {/* Address */}
+        {editing ? (
+          <>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Street Address
+              </label>
+              <input
+                type="text"
+                value={formData.address.street}
+                onChange={(e) => handleAddressChange('street', e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter street address"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+              <input
+                type="text"
+                value={formData.address.city}
+                onChange={(e) => handleAddressChange('city', e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="City"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
+              <input
+                type="text"
+                value={formData.address.state}
+                onChange={(e) => handleAddressChange('state', e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="State"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">ZIP Code</label>
+              <input
+                type="text"
+                value={formData.address.zipCode}
+                onChange={(e) => handleAddressChange('zipCode', e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="ZIP Code"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
+              <input
+                type="text"
+                value={formData.address.country}
+                onChange={(e) => handleAddressChange('country', e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Country"
+              />
+            </div>
+          </>
+        ) : (
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+            <div className="flex items-start gap-2 text-gray-900">
+              <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm">{formatAddress(profile?.address)}</p>
+            </div>
+          </div>
+        )}
 
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">Email</label>
-                            <div className="flex items-center">
-                              <Mail className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
-                              <input
-                                type="email"
-                                value={shopProfile.contact.email}
-                                onChange={(e) => handleContactChange('email', e.target.value)}
-                                disabled={!isEditingShop}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:bg-gray-100"
-                              />
-                            </div>
-                          </div>
+        {/* Avatar */}
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Profile Picture URL
+          </label>
+          {editing ? (
+            <input
+              type="url"
+              name="avatar"
+              value={formData.avatar}
+              onChange={handleInputChange}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter image URL for your profile picture"
+            />
+          ) : (
+            <div className="text-sm text-gray-500">
+              {profile?.avatar ? 'Custom avatar set' : 'Using default avatar'}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">Website</label>
-                            <div className="flex items-center">
-                              <Globe className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
-                              <input
-                                type="url"
-                                value={shopProfile.contact.website}
-                                onChange={(e) => handleContactChange('website', e.target.value)}
-                                disabled={!isEditingShop}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:bg-gray-100"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+  const renderBusinessInfo = () => {
+    if (profile?.role !== 'vendor') return null;
 
-                      {/* Address */}
-                      <div>
-                        <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Address</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">Street Address</label>
-                            <div className="flex items-center">
-                              <MapPin className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
-                              <input
-                                type="text"
-                                value={shopProfile.address.street}
-                                onChange={(e) => handleAddressChange('street', e.target.value)}
-                                disabled={!isEditingShop}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:bg-gray-100"
-                              />
-                            </div>
-                          </div>
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <Building className="h-5 w-5 text-gray-400" />
+            Business Information
+          </h3>
+        </div>
 
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">City</label>
-                            <input
-                              type="text"
-                              value={shopProfile.address.city}
-                              onChange={(e) => handleAddressChange('city', e.target.value)}
-                              disabled={!isEditingShop}
-                              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:bg-gray-100"
-                            />
-                          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Business Name */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Business Name *
+            </label>
+            {editing ? (
+              <input
+                type="text"
+                name="businessName"
+                value={formData.businessName}
+                onChange={handleInputChange}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter your business name"
+                required
+              />
+            ) : (
+              <div className="flex items-center gap-2 text-gray-900">
+                <Building className="h-4 w-4 text-gray-400" />
+                <p className="text-sm font-medium">
+                  {profile.vendorProfile?.businessName || profile.businessName || 'Not provided'}
+                </p>
+              </div>
+            )}
+          </div>
 
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">State</label>
-                            <input
-                              type="text"
-                              value={shopProfile.address.state}
-                              onChange={(e) => handleAddressChange('state', e.target.value)}
-                              disabled={!isEditingShop}
-                              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:bg-gray-100"
-                            />
-                          </div>
+          {/* Business Description */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Business Description
+            </label>
+            {editing ? (
+              <textarea
+                name="businessDescription"
+                value={formData.businessDescription}
+                onChange={handleInputChange}
+                rows={3}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Describe your business"
+              />
+            ) : (
+              <p className="text-sm text-gray-600">
+                {profile.vendorProfile?.businessDescription || profile.businessDescription || 'No description provided'}
+              </p>
+            )}
+          </div>
 
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">ZIP Code</label>
-                            <input
-                              type="text"
-                              value={shopProfile.address.zipCode}
-                              onChange={(e) => handleAddressChange('zipCode', e.target.value)}
-                              disabled={!isEditingShop}
-                              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:bg-gray-100"
-                            />
-                          </div>
-                        </div>
-                      </div>
+          {/* Business Address */}
+          {editing ? (
+            <>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Business Street Address
+                </label>
+                <input
+                  type="text"
+                  value={formData.businessAddress.street}
+                  onChange={(e) => handleBusinessAddressChange('street', e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter street address"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                <input
+                  type="text"
+                  value={formData.businessAddress.city}
+                  onChange={(e) => handleBusinessAddressChange('city', e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="City"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
+                <input
+                  type="text"
+                  value={formData.businessAddress.state}
+                  onChange={(e) => handleBusinessAddressChange('state', e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="State"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">ZIP Code</label>
+                <input
+                  type="text"
+                  value={formData.businessAddress.zipCode}
+                  onChange={(e) => handleBusinessAddressChange('zipCode', e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="ZIP Code"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
+                <input
+                  type="text"
+                  value={formData.businessAddress.country}
+                  onChange={(e) => handleBusinessAddressChange('country', e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Country"
+                />
+              </div>
+            </>
+          ) : (
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Business Address
+              </label>
+              <div className="flex items-center gap-2 text-gray-900">
+                <MapPin className="h-4 w-4 text-gray-400" />
+                <p className="text-sm">
+                  {formatAddress(profile.vendorProfile?.businessAddress) ||
+                    formatAddress(profile.address) ||
+                    'Not provided'}
+                </p>
+              </div>
+            </div>
+          )}
 
-                      {/* Delivery Options */}
-                      <div>
-                        <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Delivery Options</h3>
-                        <div className="space-y-3 md:space-y-4">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="flex items-center">
-                              <input
-                                type="checkbox"
-                                checked={shopProfile.deliveryOptions.deliveryAvailable}
-                                onChange={(e) => handleDeliveryOptionChange('deliveryAvailable', e.target.checked)}
-                                disabled={!isEditingShop}
-                                className="h-4 w-4 text-blue-600 rounded"
-                              />
-                              <span className="ml-2 text-sm font-medium text-gray-700">Delivery Available</span>
-                            </div>
-                            <div className="flex items-center">
-                              <input
-                                type="checkbox"
-                                checked={shopProfile.deliveryOptions.pickupAvailable}
-                                onChange={(e) => handleDeliveryOptionChange('pickupAvailable', e.target.checked)}
-                                disabled={!isEditingShop}
-                                className="h-4 w-4 text-blue-600 rounded"
-                              />
-                              <span className="ml-2 text-sm font-medium text-gray-700">Pickup Available</span>
-                            </div>
-                          </div>
+          {/* Other business fields */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Business Phone
+            </label>
+            {editing ? (
+              <input
+                type="tel"
+                name="businessPhone"
+                value={formData.businessPhone}
+                onChange={handleInputChange}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Business phone number"
+              />
+            ) : (
+              <div className="flex items-center gap-2 text-gray-900">
+                <Phone className="h-4 w-4 text-gray-400" />
+                <p className="text-sm">
+                  {profile.vendorProfile?.businessPhone || profile.phone || 'Not provided'}
+                </p>
+              </div>
+            )}
+          </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-                            <div className="space-y-2">
-                              <label className="text-sm font-medium text-gray-700">Delivery Radius (km)</label>
-                              <input
-                                type="number"
-                                value={shopProfile.deliveryOptions.deliveryRadius}
-                                onChange={(e) => handleDeliveryOptionChange('deliveryRadius', parseInt(e.target.value))}
-                                disabled={!isEditingShop}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:bg-gray-100"
-                              />
-                            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Business Email
+            </label>
+            {editing ? (
+              <input
+                type="email"
+                name="businessEmail"
+                value={formData.businessEmail}
+                onChange={handleInputChange}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Business email address"
+              />
+            ) : (
+              <div className="flex items-center gap-2 text-gray-900">
+                <Mail className="h-4 w-4 text-gray-400" />
+                <p className="text-sm">
+                  {profile.vendorProfile?.businessEmail || profile.email || 'Not provided'}
+                </p>
+              </div>
+            )}
+          </div>
 
-                            <div className="space-y-2">
-                              <label className="text-sm font-medium text-gray-700">Delivery Fee (₦)</label>
-                              <input
-                                type="number"
-                                value={shopProfile.deliveryOptions.deliveryFee}
-                                onChange={(e) => handleDeliveryOptionChange('deliveryFee', parseInt(e.target.value))}
-                                disabled={!isEditingShop}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:bg-gray-100"
-                              />
-                            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
+            {editing ? (
+              <input
+                type="url"
+                name="businessWebsite"
+                value={formData.businessWebsite}
+                onChange={handleInputChange}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="https://example.com"
+              />
+            ) : (
+              <div className="flex items-center gap-2 text-gray-900">
+                <Globe className="h-4 w-4 text-gray-400" />
+                <p className="text-sm">
+                  {profile.vendorProfile?.businessWebsite || 'Not provided'}
+                </p>
+              </div>
+            )}
+          </div>
 
-                            <div className="space-y-2">
-                              <label className="text-sm font-medium text-gray-700">Min Order (₦)</label>
-                              <input
-                                type="number"
-                                value={shopProfile.deliveryOptions.minOrderAmount}
-                                onChange={(e) => handleDeliveryOptionChange('minOrderAmount', parseInt(e.target.value))}
-                                disabled={!isEditingShop}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm disabled:bg-gray-100"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Years in Business
+            </label>
+            {editing ? (
+              <input
+                type="number"
+                name="yearsInBusiness"
+                value={formData.yearsInBusiness}
+                onChange={handleNumberChange}
+                min="0"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="0"
+              />
+            ) : (
+              <div className="flex items-center gap-2 text-gray-900">
+                <Award className="h-4 w-4 text-gray-400" />
+                <p className="text-sm">{profile.vendorProfile?.yearsInBusiness || 0} years</p>
+              </div>
+            )}
+          </div>
 
-                      {/* Shop Status */}
-                      <div>
-                        <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Shop Status</h3>
-                        <div className="flex flex-wrap gap-3 md:gap-4">
-                          {(['open', 'closed', 'busy'] as const).map(status => (
-                            <label key={status} className="flex items-center cursor-pointer">
-                              <input
-                                type="radio"
-                                name="shopStatus"
-                                value={status}
-                                checked={shopProfile.status === status}
-                                onChange={(e) => handleShopInputChange('status', e.target.value)}
-                                disabled={!isEditingShop}
-                                className="h-4 w-4 text-blue-600"
-                              />
-                              <span className="ml-2 text-sm font-medium text-gray-700 capitalize">
-                                {status}
-                              </span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  /* Create Shop CTA */
-                  <div className="p-8 md:p-12 text-center">
-                    <div className="max-w-md mx-auto">
-                      <Store className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">No Shop Yet</h3>
-                      <p className="text-gray-600 mb-6">
-                        Create your shop to start selling products and reach more customers.
-                      </p>
-                      <button
-                        onClick={handleCreateShop}
-                        className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                      >
-                        <Store className="h-5 w-5" />
-                        Create Your Shop
-                      </button>
-                      <p className="text-xs text-gray-500 mt-4">
-                        You'll become a seller after creating your shop
-                      </p>
-                    </div>
-                  </div>
-                )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tax ID / VAT
+            </label>
+            {editing ? (
+              <input
+                type="text"
+                name="taxId"
+                value={formData.taxId}
+                onChange={handleInputChange}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Tax identification number"
+              />
+            ) : (
+              <div className="flex items-center gap-2 text-gray-900">
+                <CreditCard className="h-4 w-4 text-gray-400" />
+                <p className="text-sm">{profile.vendorProfile?.taxId || 'Not provided'}</p>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Registration Number
+            </label>
+            {editing ? (
+              <input
+                type="text"
+                name="businessRegistration"
+                value={formData.businessRegistration}
+                onChange={handleInputChange}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Business registration number"
+              />
+            ) : (
+              <div className="flex items-center gap-2 text-gray-900">
+                <FileText className="h-4 w-4 text-gray-400" />
+                <p className="text-sm">
+                  {profile.vendorProfile?.businessRegistration || 'Not provided'}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Business Logo URL
+            </label>
+            {editing ? (
+              <input
+                type="url"
+                name="businessLogo"
+                value={formData.businessLogo}
+                onChange={handleInputChange}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter image URL for your business logo"
+              />
+            ) : (
+              <div className="text-sm text-gray-500">
+                {profile.vendorProfile?.businessLogo || profile.businessLogo ? 'Custom logo set' : 'No logo uploaded'}
               </div>
             )}
           </div>
         </div>
-      </main>
-    </div>
-  );
-}
 
-// Main export with ProtectedRoute wrapper
-export default function ProfilePage() {
+        {/* Shops Section */}
+        {(profile.vendorProfile?.shops || profile.shops) && (profile.vendorProfile?.shops?.length || profile.shops?.length || 0) > 0 && (
+          <div className="mt-8 pt-6 border-t border-gray-200">
+            <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Store className="h-5 w-5 text-gray-400" />
+              My Shops ({profile.vendorProfile?.shops?.length || profile.shops?.length || 0})
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {(profile.vendorProfile?.shops || profile.shops || []).slice(0, 4).map(shop => (
+                <div key={shop._id} className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-200 flex items-center justify-center">
+                      <Store className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <div>
+                      <h5 className="font-medium text-gray-900 text-sm">{shop.name}</h5>
+                      <p className="text-xs text-gray-500">{shop.category}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <Star className="h-3 w-3 text-yellow-400 fill-current" />
+                      <span className="text-xs font-medium">{shop.rating?.toFixed(1) || '0.0'}</span>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      shop.isVerified ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {shop.isVerified ? 'Verified' : 'Unverified'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => router.push(`/shops/${shop._id}`)}
+                    className="w-full mt-3 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    View Shop →
+                  </button>
+                </div>
+              ))}
+            </div>
+            {(profile.vendorProfile?.shops?.length || profile.shops?.length || 0) > 4 && (
+              <button
+                onClick={() => router.push('/vendor/shops')}
+                className="mt-4 text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                View all shops →
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ============================================================================
+  // MAIN RENDER
+  // ============================================================================
+
+  if (loading && !profile) {
+    return renderLoadingState();
+  }
+
+  if (error && !profile) {
+    return renderErrorState();
+  }
+
+  if (!profile) {
+    return renderEmptyState();
+  }
+
   return (
-    <ProtectedRoute>
-      <ProfilePageContent />
-    </ProtectedRoute>
+    <section className="mt-6 text-black px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Profile</h1>
+              <p className="text-gray-600 mt-1">
+                Manage your personal and business information
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {!editing ? (
+                <button
+                  onClick={() => setEditing(true)}
+                  className="px-4 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2"
+                >
+                  <Edit2 className="h-4 w-4" />
+                  Edit Profile
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={saving}
+                    className="px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" />
+                        Save Changes
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    disabled={saving}
+                    className="px-4 py-2.5 border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <X className="h-4 w-4" />
+                    Cancel
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Success Message */}
+        {successMessage && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center">
+              <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
+              <p className="text-green-700 text-sm flex-1">{successMessage}</p>
+              <button
+                onClick={() => setSuccessMessage(null)}
+                className="ml-4 text-green-600 hover:text-green-800 text-sm font-medium"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center">
+              <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0" />
+              <p className="text-red-700 text-sm flex-1">{error}</p>
+              <button
+                onClick={clearError}
+                className="ml-4 text-red-600 hover:text-red-800 text-sm font-medium"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Profile Overview */}
+          <div className="lg:col-span-1">
+            {renderProfileOverview()}
+          </div>
+
+          {/* Right Column - Profile Details */}
+          <div className="lg:col-span-2">
+            {/* Tabs for Vendors */}
+            {profile.role === 'vendor' && (
+              <div className="mb-6">
+                <div className="border-b border-gray-200">
+                  <nav className="-mb-px flex space-x-8">
+                    <button
+                      onClick={() => setActiveTab('personal')}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                        activeTab === 'personal'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      Personal Information
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('business')}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                        activeTab === 'business'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      Business Profile
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            )}
+
+            {/* Content based on active tab */}
+            {(activeTab === 'personal' || profile.role !== 'vendor') && renderPersonalInfo()}
+            {profile.role === 'vendor' && activeTab === 'business' && renderBusinessInfo()}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }

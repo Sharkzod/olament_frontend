@@ -1,12 +1,12 @@
 // app/vendor/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Store, MapPin, Package, ShoppingBag, DollarSign, 
-  Star, TrendingUp, Users, Clock, CheckCircle, 
-  XCircle, Edit, Plus, Phone, Mail, Globe, 
+import {
+  Store, MapPin, Package, ShoppingBag, DollarSign,
+  Star, TrendingUp, Users, Clock, CheckCircle,
+  XCircle, Edit, Plus, Phone, Mail, Globe,
   FileText, Calendar, Shield, Award, Loader2,
   AlertCircle, ExternalLink, ChevronRight, User,
   BarChart3, Settings, Building2, Tag, Image as ImageIcon,
@@ -14,43 +14,112 @@ import {
 } from 'lucide-react';
 import { useVendor } from '../lib/hooks/useVendor';
 import { useProfile } from '../lib/hooks/useProfile';
+// import { useShop } from '../lib/hooks/useShop';
+import MyShops from '../components/MyShops';
+
+// Add this interface to your types
+interface VendorProfile {
+  _id?: string;
+  userId?: string;
+  businessName: string;
+  businessDescription: string;
+  businessAddress: string;
+  businessPhone: string;
+  businessEmail: string;
+  businessWebsite: string;
+  taxId: string;
+  businessRegistration: string;
+  yearsInBusiness: number;
+  shopIds: string[];
+  shops?: Shop[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Update your API response type
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  error?: string;
+}
+
 
 export default function VendorPage() {
   const [activeTab, setActiveTab] = useState('business');
   const [editingProfile, setEditingProfile] = useState(false);
+  const [isProfileEmpty, setIsProfileEmpty] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  
-  const { 
-  shops, 
-  vendorProfile, 
-  stats, 
-  loading, 
-  error, 
-  getVendorProfile, 
-  updateVendorProfile,
-  getShopsByOwnerId, // Changed from getMyShops to getShopsByOwnerId
-  getVendorStats,
-  toggleShopStatus,
-  deleteShop,
-  refreshVendorData
-} = useVendor();
-  
+
+  const {
+    shops,
+    vendorProfile,
+    stats,
+    loading,
+    error,
+    getVendorProfile,
+    updateVendorProfile,
+    getShopsByOwnerId,
+    getVendorStats,
+    toggleShopStatus,
+    deleteShop,
+    refreshVendorData
+  } = useVendor();
+
   const { profile } = useProfile();
-  
   const router = useRouter();
 
+
+
+
+  // Get vendor data on initial load
+  // Update your useEffect to properly initialize data
   useEffect(() => {
     const initializeData = async () => {
-      await refreshVendorData();
+      try {
+        // Get vendor profile
+        const profileResult = await getVendorProfile();
+
+        console.log('Profile result:', profileResult);
+
+        // // If we have a profile and shops, get the shops
+        // if (profileResult.success && profileResult.profile) {
+        //   // Option 1: If shops are already included in the profile
+        //   if (profileResult.profile.shops && profileResult.profile.shops.length > 0) {
+        //     setShops(profileResult.profile.shops);
+        //   }
+        //   // Option 2: If you need to fetch shops separately
+        //   else if (profileResult.profile.shopIds && profileResult.profile.shopIds.length > 0) {
+        //     // You'll need to implement getShopsByOwnerId
+        //     const shopsResult = await getShopsByOwnerId(profileResult.profile._id);
+        //     if (shopsResult.success) {
+        //       setShops(shopsResult.shops);
+        //     }
+        //   }
+
+        //   // Get stats if we have shops
+        //   if (profileResult.profile.shopIds?.length > 0) {
+        //     await getVendorStats();
+        //   }
+        // }
+      } catch (err) {
+        console.error('Failed to initialize vendor data:', err);
+      }
     };
-    
+
     initializeData();
-  }, [refreshVendorData]);
+  }, []);
+
 
   const handleToggleShopStatus = async (shopId: string, isActive: boolean) => {
     const result = await toggleShopStatus(shopId, isActive);
     if (result.success) {
-      refreshVendorData();
+      // Refresh shops and stats
+      const profileResult = await getVendorProfile();
+      if (profileResult.success && profileResult.profile) {
+        await getShopsByOwnerId(profileResult.profile._id || '');
+      }
+      await getVendorStats();
     }
   };
 
@@ -58,7 +127,8 @@ export default function VendorPage() {
     if (window.confirm('Are you sure you want to delete this shop?')) {
       const result = await deleteShop(shopId);
       if (result.success) {
-        refreshVendorData();
+        // Refresh data
+        await getVendorStats();
       }
     }
   };
@@ -67,151 +137,51 @@ export default function VendorPage() {
     const result = await updateVendorProfile(formData);
     if (result.success) {
       setEditingProfile(false);
+      // Refresh data
+      await Promise.all([
+        getVendorProfile(),
+        getVendorStats()
+      ]);
     }
   };
+
 
   const filteredShops = shops.filter(shop =>
     shop.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     shop.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Helper function to format address
+
+
   const renderBusinessProfile = () => {
     if (editingProfile) {
       return (
-        <BusinessProfileEdit 
+        <BusinessProfileEdit
           profile={vendorProfile}
           onSave={handleSaveProfile}
           onCancel={() => setEditingProfile(false)}
           loading={loading}
+          isNewVendor={!vendorProfile}
         />
       );
     }
 
     return (
-      <BusinessProfileView 
+      <BusinessProfileView
         profile={vendorProfile}
         onEdit={() => setEditingProfile(true)}
+        isNewVendor={!vendorProfile}
       />
     );
   };
 
-  const renderMyShops = () => (
-    <section className="mt-6 text-black">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-black">My Shops</h2>
-        <button 
-          onClick={() => router.push('/vendor/shops/new')}
-          className="text-sm font-semibold text-blue-600 flex items-center gap-1"
-        >
-          Add New <Plus className="h-4 w-4" />
-        </button>
-      </div>
 
-      {shops.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-          <Store className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-gray-700">No shops yet</h3>
-          <p className="text-gray-500 mt-2">Create your first shop to start selling</p>
-          <button 
-            onClick={() => router.push('/vendor/shops/new')}
-            className="mt-6 px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
-          >
-            Create First Shop
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {filteredShops.map(shop => (
-            <div key={shop._id} className="bg-white rounded-xl border border-gray-200 p-4">
-              <div className="flex gap-4">
-                <div className="relative">
-                  <div className="w-24 h-24 rounded-lg overflow-hidden bg-gray-200 flex items-center justify-center">
-                    {shop.imageUrl ? (
-                      <img 
-                        src={shop.imageUrl} 
-                        alt={shop.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <Store className="h-12 w-12 text-gray-400" />
-                    )}
-                  </div>
-                  {!shop.isActive && (
-                    <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
-                      <span className="text-white text-xs font-semibold bg-red-500 px-2 py-1 rounded">INACTIVE</span>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-bold text-gray-900">{shop.name}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="flex items-center gap-1 text-gray-600">
-                          <MapPin className="h-3 w-3" />
-                          <span className="text-xs">{shop.marketId?.city || shop.marketId?.state}</span>
-                        </div>
-                        <span className="text-xs bg-gray-100 px-2 py-1 rounded">{shop.category}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className={`px-2 py-1 rounded text-xs font-medium ${
-                        shop.isActive 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {shop.isActive ? 'ACTIVE' : 'INACTIVE'}
-                      </div>
-                      <button className="text-gray-400 hover:text-blue-500">
-                        <Edit className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <p className="text-gray-600 text-sm mt-2 line-clamp-2">{shop.description}</p>
-                  
-                  <div className="flex items-center gap-4 mt-3">
-                    <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                      <span className="text-sm font-semibold text-black">{shop.rating.toFixed(1)}</span>
-                      <span className="text-xs text-gray-500">({shop.totalReviews})</span>
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {shop.productsCount || 0} products
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {shop.isVerified ? '✓ Verified' : 'Pending'}
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2 mt-4">
-                    <button 
-                      onClick={() => router.push(`/shops/${shop._id}`)}
-                      className="flex-1 px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 transition-colors"
-                    >
-                      View Shop
-                    </button>
-                    <button 
-                      onClick={() => handleToggleShopStatus(shop._id, !shop.isActive)}
-                      className="px-4 py-2 border border-gray-300 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      {shop.isActive ? 'Deactivate' : 'Activate'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
 
   const renderAnalytics = () => (
     <section className="mt-6 text-black">
       <h2 className="text-lg font-bold text-black mb-4">Business Analytics</h2>
-      
+
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-white rounded-xl p-4 border border-gray-200">
           <div className="flex items-center justify-between">
@@ -262,6 +232,33 @@ export default function VendorPage() {
         </div>
       </div>
 
+      {/* Additional Stats */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-white rounded-xl p-4 border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total Products</p>
+              <p className="text-xl font-bold mt-1">{stats?.totalProducts || 0}</p>
+            </div>
+            <div className="p-2 bg-indigo-100 rounded-lg">
+              <Package className="h-5 w-5 text-indigo-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">This Month Revenue</p>
+              <p className="text-xl font-bold mt-1">₦{(stats?.thisMonthRevenue || 0).toLocaleString()}</p>
+            </div>
+            <div className="p-2 bg-pink-100 rounded-lg">
+              <TrendingUp className="h-5 w-5 text-pink-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Recent Activity */}
       <div className="bg-white rounded-xl p-4 border border-gray-200">
         <h3 className="font-bold mb-3">Recent Activity</h3>
@@ -279,7 +276,12 @@ export default function VendorPage() {
               </div>
               <div className="text-right">
                 <p className="text-xs text-gray-600">Last updated</p>
-                <p className="text-xs font-medium">2 days ago</p>
+                <p className="text-xs font-medium">
+                  {new Date(shop.updatedAt).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric'
+                  })}
+                </p>
               </div>
             </div>
           ))}
@@ -293,7 +295,7 @@ export default function VendorPage() {
       case 'business':
         return renderBusinessProfile();
       case 'shops':
-        return renderMyShops();
+        return <MyShops onToggleShopStatus={handleToggleShopStatus} />;
       case 'analytics':
         return renderAnalytics();
       default:
@@ -301,29 +303,38 @@ export default function VendorPage() {
     }
   };
 
+  // Handle loading state
+  if (loading && !vendorProfile && !shops.length) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-3" />
+          <p className="text-gray-600">Loading vendor dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white">
-      {/* Header - Matching markets page */}
-     <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
-  <div className="flex items-center justify-between px-4 py-3 w-full">
-    <div className="flex items-center gap-3">
-      <div className="h-10 w-10 rounded-lg bg-gray-900 flex items-center justify-center">
-        <Store className="h-6 w-6 text-white" />
-      </div>
-      <div>
-        <div className="text-lg font-bold text-black">Vendor Center</div>
-        <div className="text-xs text-gray-600">Manage your business</div>
-      </div>
-    </div>
-    
-   
-  </div>
-</header>
+      {/* Header */}
+      <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
+        <div className="flex items-center justify-between px-4 py-3 w-full">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-gray-900 flex items-center justify-center">
+              <Store className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <div className="text-lg font-bold text-black">Vendor Center</div>
+              <div className="text-xs text-gray-600">Manage your business</div>
+            </div>
+          </div>
+        </div>
+      </header>
 
       <main className="px-4 pb-20">
-        {/* Tabs - Same style as markets page */}
+        {/* Tabs */}
         <div className="mt-4">
-          
           <div className="flex bg-gray-100 rounded-lg">
             <div className='h-11 w-full flex items-center justify-center'>
               {[
@@ -336,32 +347,38 @@ export default function VendorPage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`text-sm font-semibold capitalize justify-between w-full flex items-center justify-center gap-1 ${
-                      activeTab === tab.id 
-                        ? 'text-gray-900 bg-white rounded-lg py-2' 
-                        : 'text-gray-500'
-                    }`}
+                    className={`text-sm font-semibold capitalize justify-between w-full flex items-center justify-center gap-1 ${activeTab === tab.id
+                      ? 'text-gray-900 bg-white rounded-lg py-2'
+                      : 'text-gray-500'
+                      }`}
                   >
                     <Icon className="h-4 w-4" />
                     {tab.label}
                   </button>
                 );
               })}
-
-              
             </div>
-            
           </div>
-           <button 
-      onClick={() => window.history.back()}
-      className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-    >
-      <ArrowLeft className="h-5 w-5" />
-      <span className="text-sm font-medium">Back</span>
-    </button>
+          <button
+            onClick={() => window.history.back()}
+            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors mt-4"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span className="text-sm font-medium">Back</span>
+          </button>
         </div>
 
-        {/* Search Bar - Same as markets page */}
+        {/* Error Alert */}
+        {error && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center">
+              <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Search Bar */}
         {activeTab === 'shops' && (
           <div className="mt-4 relative">
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -374,46 +391,14 @@ export default function VendorPage() {
           </div>
         )}
 
-        {/* Stats Banner - Similar to markets page */}
-        {/* <div className="mt-4 rounded-2xl bg-gradient-to-r from-blue-500 to-purple-600 flex gap-3 w-full h-[10vh]">
-          <div className='w-[90%] flex items-center gap-3 justify-center m-auto'>
-            <div className="rounded-lg p-2.5 bg-white/20">
-              <Store className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <div className="text-base font-bold mb-1 text-white">
-                {stats?.totalShops || 0} Shops • {stats?.totalProducts || 0} Products
-              </div>
-              <div className="text-sm text-white/90">Manage your business</div>
-            </div>
-          </div>
-        </div> */}
-
-        {/* Error Alert */}
-        {/* {error && (
-          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-center">
-              <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-              <p className="text-red-700 text-sm">{error}</p>
-            </div>
-          </div>
-        )} */}
-
-        {/* Loading State */}
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-3" />
-            <p className="text-gray-600">Loading vendor data...</p>
-          </div>
-        ) : (
-          renderTabContent()
-        )}
+        {/* Content */}
+        {renderTabContent()}
       </main>
 
-      {/* Bottom Navigation - Same as markets page */}
+      {/* Bottom Navigation */}
       <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-20">
         <div className="flex items-center gap-1 bg-gray-900 rounded-full px-2 py-2 shadow-lg">
-          <button 
+          <button
             onClick={() => router.push('/profile')}
             className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center transition-colors"
           >
@@ -425,7 +410,7 @@ export default function VendorPage() {
           <button className="px-6 py-2 bg-white text-gray-900 text-sm font-medium rounded-full hover:bg-gray-100 transition-colors">
             Dashboard
           </button>
-          <button 
+          <button
             onClick={() => router.push('/vendor/shops/new')}
             className="w-10 h-10 rounded-full bg-blue-500 hover:bg-blue-600 flex items-center justify-center transition-colors"
           >
@@ -437,12 +422,88 @@ export default function VendorPage() {
   );
 }
 
-// Business Profile View Component - Updated styling
-function BusinessProfileView({ profile, onEdit }: { profile: any, onEdit: () => void }) {
+// Business Profile View Component
+function BusinessProfileView({ profile, onEdit, isNewVendor }: {
+  profile: any,
+  onEdit: () => void,
+  isNewVendor: boolean
+}) {
+
+  const formatAddress = (address: any): string => {
+    if (!address) return '';
+
+    // If address is already a string, return it
+    if (typeof address === 'string') return address;
+
+    // If address is an object, format it
+    if (typeof address === 'object') {
+      const parts = [
+        address.street,
+        address.city,
+        address.state,
+        address.country,
+        address.zipCode
+      ].filter(Boolean); // Remove empty/null/undefined parts
+
+      return parts.join(', ');
+    }
+
+    return '';
+  };
+
+  if (isNewVendor) {
+    return (
+      <section className="mt-6 text-black">
+        <div className="mb-4">
+          <h2 className="text-lg font-bold text-black">Welcome to Vendor Center</h2>
+          <p className="text-gray-600 text-sm">Complete your business profile to start selling</p>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+          <Building2 className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="font-bold text-lg text-gray-700">No Business Profile Found</h3>
+          <p className="text-gray-500 mt-2">Create your business profile to start selling on our platform</p>
+          <div className="mt-8 space-y-4 max-w-md mx-auto text-left">
+            <div className="flex items-start gap-3">
+              <Store className="h-5 w-5 text-green-500 mt-0.5" />
+              <div>
+                <p className="font-medium text-sm">Create Shops</p>
+                <p className="text-xs text-gray-600">Set up multiple shops in different markets</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <ShoppingBag className="h-5 w-5 text-blue-500 mt-0.5" />
+              <div>
+                <p className="font-medium text-sm">Sell Products</p>
+                <p className="text-xs text-gray-600">List and manage your products</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <BarChart3 className="h-5 w-5 text-purple-500 mt-0.5" />
+              <div>
+                <p className="font-medium text-sm">Track Analytics</p>
+                <p className="text-xs text-gray-600">Monitor sales and performance</p>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={onEdit}
+            className="mt-8 px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
+          >
+            Create Business Profile
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="mt-6 text-black">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-black">Business Profile</h2>
+        <div>
+          <h2 className="text-lg font-bold text-black">Business Profile</h2>
+          <p className="text-sm text-gray-600">Manage your business information</p>
+        </div>
         <button
           onClick={onEdit}
           className="text-sm font-semibold text-blue-600 flex items-center gap-1"
@@ -452,14 +513,26 @@ function BusinessProfileView({ profile, onEdit }: { profile: any, onEdit: () => 
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-4">
-        {/* Business Header */}
+        {/* Business Header with Business Name */}
         <div className="flex items-start gap-4 mb-6">
           <div className="w-16 h-16 rounded-xl bg-gray-200 flex items-center justify-center">
             <Building2 className="h-8 w-8 text-gray-500" />
           </div>
           <div className="flex-1">
-            <h3 className="font-bold text-lg text-gray-900">{profile?.businessName || 'Your Business Name'}</h3>
-            <p className="text-gray-600 text-sm mt-1">{profile?.businessDescription || 'Add a business description'}</p>
+            <h3 className="font-bold text-lg text-gray-900">
+              {profile?.businessName || 'No Business Name'}
+            </h3>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs bg-gray-100 px-2 py-1 rounded">Vendor</span>
+              {profile?.shops?.length > 0 && (
+                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                  {profile.shops.length} {profile.shops.length === 1 ? 'Shop' : 'Shops'}
+                </span>
+              )}
+            </div>
+            <p className="text-gray-600 text-sm mt-2">
+              {profile?.businessDescription || 'No business description added'}
+            </p>
           </div>
         </div>
 
@@ -470,10 +543,12 @@ function BusinessProfileView({ profile, onEdit }: { profile: any, onEdit: () => 
               <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
               <div>
                 <p className="text-xs text-gray-600">Business Address</p>
-                <p className="font-medium text-sm">{profile?.businessAddress || 'Not provided'}</p>
+                <p className="font-medium text-sm">
+                  {formatAddress(profile?.businessAddress) || 'Not provided'}
+                </p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <Phone className="h-4 w-4 text-gray-400 flex-shrink-0" />
               <div>
@@ -491,7 +566,7 @@ function BusinessProfileView({ profile, onEdit }: { profile: any, onEdit: () => 
                 <p className="font-medium text-sm">{profile?.businessEmail || 'Not provided'}</p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <Globe className="h-4 w-4 text-gray-400 flex-shrink-0" />
               <div>
@@ -513,7 +588,7 @@ function BusinessProfileView({ profile, onEdit }: { profile: any, onEdit: () => 
                 <p className="font-medium text-sm">{profile?.taxId || 'Not provided'}</p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <Calendar className="h-4 w-4 text-gray-400" />
               <div>
@@ -538,11 +613,10 @@ function BusinessProfileView({ profile, onEdit }: { profile: any, onEdit: () => 
                     <Store className="h-3 w-3 text-gray-500" />
                     <span className="text-sm font-medium">{shop.name}</span>
                   </div>
-                  <div className={`px-2 py-1 rounded text-xs ${
-                    shop.isVerified 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-yellow-100 text-yellow-800'
-                  }`}>
+                  <div className={`px-2 py-1 rounded text-xs ${shop.isVerified
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-yellow-100 text-yellow-800'
+                    }`}>
                     {shop.isVerified ? '✓ Verified' : 'Pending'}
                   </div>
                 </div>
@@ -555,12 +629,14 @@ function BusinessProfileView({ profile, onEdit }: { profile: any, onEdit: () => 
   );
 }
 
-// Business Profile Edit Component - Updated styling
-function BusinessProfileEdit({ profile, onSave, onCancel, loading }: { 
-  profile: any, 
+// Business Profile Edit Component
+// BusinessProfileEdit Component - CORRECTED VERSION
+function BusinessProfileEdit({ profile, onSave, onCancel, loading, isNewVendor }: {
+  profile: any,
   onSave: (data: any) => void,
   onCancel: () => void,
-  loading: boolean 
+  loading: boolean,
+  isNewVendor: boolean
 }) {
   const [formData, setFormData] = useState({
     businessName: profile?.businessName || '',
@@ -579,14 +655,43 @@ function BusinessProfileEdit({ profile, onSave, onCancel, loading }: {
     onSave(formData);
   };
 
+  const formatAddress = (address: any): string => {
+    if (!address) return '';
+
+    // If address is already a string, return it
+    if (typeof address === 'string') return address;
+
+    // If address is an object, format it
+    if (typeof address === 'object') {
+      const parts = [
+        address.street,
+        address.city,
+        address.state,
+        address.country,
+        address.zipCode
+      ].filter(Boolean); // Remove empty/null/undefined parts
+
+      return parts.join(', ');
+    }
+
+    return '';
+  };
+
   return (
     <section className="mt-6">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-black">Edit Business Profile</h2>
+        <div>
+          <h2 className="text-lg font-bold text-black">
+            {isNewVendor ? 'Create Business Profile' : 'Edit Business Profile'}
+          </h2>
+          {isNewVendor && (
+            <p className="text-sm text-gray-600">Complete your profile to become a vendor</p>
+          )}
+        </div>
         <div className="flex gap-2">
           <button
             onClick={onCancel}
-            className="px-4 py-2 border border-gray-300 text-sm font-semibold rounded-lg hover:bg-gray-50"
+            className="px-4 py-2 border text-black border-gray-300 text-sm font-semibold rounded-lg hover:bg-gray-50"
             disabled={loading}
           >
             Cancel
@@ -601,12 +706,30 @@ function BusinessProfileEdit({ profile, onSave, onCancel, loading }: {
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Saving...
               </>
-            ) : 'Save Changes'}
+            ) : (isNewVendor ? 'Create Profile' : 'Save Changes')}
           </button>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-4 space-y-4">
+        {/* Welcome message for new vendors */}
+        {isNewVendor && (
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Building2 className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-blue-900">Welcome to Vendor Center!</h3>
+                <p className="text-sm text-blue-700 mt-1">
+                  Complete your business profile to start selling. You'll be able to create shops, list products, and manage orders.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* BUSINESS NAME - Most Important Field */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Business Name *
@@ -615,12 +738,14 @@ function BusinessProfileEdit({ profile, onSave, onCancel, loading }: {
             type="text"
             value={formData.businessName}
             onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+            className="w-full px-4 py-2 placeholder-gray-400 text-black border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
             required
             placeholder="Enter your business name"
           />
+          <p className="text-xs text-gray-500 mt-1">This will be displayed to customers</p>
         </div>
 
+        {/* BUSINESS DESCRIPTION */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Business Description
@@ -628,53 +753,60 @@ function BusinessProfileEdit({ profile, onSave, onCancel, loading }: {
           <textarea
             value={formData.businessDescription}
             onChange={(e) => setFormData({ ...formData, businessDescription: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+            className="w-full px-4 py-2 placeholder-gray-400 text-black border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
             rows={3}
             placeholder="Describe your business..."
           />
         </div>
 
+        {/* CONTACT INFORMATION */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Business Phone
+              Business Phone *
             </label>
             <input
               type="tel"
               value={formData.businessPhone}
               onChange={(e) => setFormData({ ...formData, businessPhone: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+              className="w-full px-4 py-2 placeholder-gray-400 text-black border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+              required
               placeholder="+234 801 234 5678"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Business Email
+              Business Email *
             </label>
             <input
               type="email"
               value={formData.businessEmail}
               onChange={(e) => setFormData({ ...formData, businessEmail: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+              className="w-full px-4 py-2 placeholder-gray-400 text-black border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+              required
               placeholder="business@example.com"
             />
           </div>
         </div>
 
+        {/* BUSINESS ADDRESS */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Business Address
+            Business Address *
           </label>
           <textarea
-            value={formData.businessAddress}
+            value={typeof formData.businessAddress === 'string'
+              ? formData.businessAddress
+              : formatAddress(formData.businessAddress)}
             onChange={(e) => setFormData({ ...formData, businessAddress: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+            className="w-full px-4 py-2 placeholder-gray-400 text-black border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
             rows={2}
+            required
             placeholder="Full business address..."
           />
         </div>
-
+        {/* WEBSITE & YEARS IN BUSINESS */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -684,7 +816,7 @@ function BusinessProfileEdit({ profile, onSave, onCancel, loading }: {
               type="url"
               value={formData.businessWebsite}
               onChange={(e) => setFormData({ ...formData, businessWebsite: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+              className="w-full px-4 py-2 placeholder-gray-400 text-black border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
               placeholder="https://example.com"
             />
           </div>
@@ -697,36 +829,76 @@ function BusinessProfileEdit({ profile, onSave, onCancel, loading }: {
               type="number"
               value={formData.yearsInBusiness}
               onChange={(e) => setFormData({ ...formData, yearsInBusiness: parseInt(e.target.value) || 0 })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+              className="w-full px-4 py-2 placeholder-gray-400 text-black border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
               min="0"
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tax ID
-            </label>
-            <input
-              type="text"
-              value={formData.taxId}
-              onChange={(e) => setFormData({ ...formData, taxId: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
-            />
+        {/* BUSINESS REGISTRATION DETAILS */}
+        <div className="pt-4 border-t border-gray-200">
+          <h3 className="font-medium text-gray-900 mb-3">Business Registration Details</h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tax ID Number
+              </label>
+              <input
+                type="text"
+                value={formData.taxId}
+                onChange={(e) => setFormData({ ...formData, taxId: e.target.value })}
+                className="w-full px-4 py-2 placeholder-gray-400 text-black border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+                placeholder="Tax identification number"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Business Registration Number
+              </label>
+              <input
+                type="text"
+                value={formData.businessRegistration}
+                onChange={(e) => setFormData({ ...formData, businessRegistration: e.target.value })}
+                className="w-full px-4 py-2 placeholder-gray-400 text-black border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+                placeholder="Business registration number"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Business Registration
-            </label>
-            <input
-              type="text"
-              value={formData.businessRegistration}
-              onChange={(e) => setFormData({ ...formData, businessRegistration: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
-            />
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-yellow-800">
+                <span className="font-medium">Note:</span> Business registration details are required for verification and payout processing.
+              </p>
+            </div>
           </div>
+        </div>
+
+        {/* Form actions at bottom */}
+        <div className="pt-4 border-t border-gray-200 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 border text-black border-gray-300 text-sm font-semibold rounded-lg hover:bg-gray-50"
+            disabled={loading}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 flex items-center gap-2"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (isNewVendor ? 'Create Business Profile' : 'Save Changes')}
+          </button>
         </div>
       </form>
     </section>
