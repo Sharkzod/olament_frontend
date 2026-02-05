@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* Scrollbar hide utilities */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari, Opera */
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -12,15 +22,32 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Chat-specific styles to ensure proper display */
+.chat-page {
+  background-color: #f9fafb;
+}
+
+.chat-input {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.chat-input::placeholder {
+  color: #9ca3af;
+}
+
+.chat-bubble-outgoing {
+  background-color: #fbbf24;
+  color: #111827;
+}
+
+.chat-bubble-incoming {
+  background-color: #f3f4f6;
+  color: #111827;
 }
