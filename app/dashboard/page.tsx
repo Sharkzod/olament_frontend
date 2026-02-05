@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Search, Bike, Store, Package, ChevronRight, Heart, Plus, ShoppingBag, User, Star, Clock, Loader2 } from 'lucide-react';
+import { MapPin, Search, Bike, Store, Package, ChevronRight, Heart, Plus, ShoppingBag, User, Star, Clock, Loader2, X } from 'lucide-react';
 import { useMarkets } from '../lib/hooks/useMarkets';
 import { useShop } from '../lib/hooks/useShop';
 import { useProducts } from '../lib/hooks/useProducts';
@@ -10,16 +10,16 @@ import BottomNav from '../components/Sidebar';
 
 const shops = [
   { id: 1, name: 'Tech Gadgets Hub', category: 'Electronics', rating: 4.7, deliveryTime: '30-45 min', open: true, image: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w-800&q=80' },
-  { id: 2, name: 'Fresh Grocery Store', category: 'Groceries', rating: 4.5, deliveryTime: '20-35 min', open: true, image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80' },
-  { id: 3, name: 'Fashion Boutique', category: 'Clothing', rating: 4.3, deliveryTime: '45-60 min', open: false, image: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=800&q=80' },
-  { id: 4, name: 'Book Haven', category: 'Books & Stationery', rating: 4.8, deliveryTime: '25-40 min', open: true, image: 'https://images.unsplash.com/photo-1535905557558-afc4877a26fc?w=800&q=80' },
+  { id: 2, name: 'Fresh Grocery Store', category: 'Groceries', rating: 4.5, deliveryTime: '20-35 min', open: true, image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w-800&q=80' },
+  { id: 3, name: 'Fashion Boutique', category: 'Clothing', rating: 4.3, deliveryTime: '45-60 min', open: false, image: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w-800&q=80' },
+  { id: 4, name: 'Book Haven', category: 'Books & Stationery', rating: 4.8, deliveryTime: '25-40 min', open: true, image: 'https://images.unsplash.com/photo-1535905557558-afc4877a26fc?w-800&q=80' },
 ];
 
 const products = [
-  { id: 1, name: 'Fresh Tomatoes', price: '₦1,200', unit: 'per kg', shop: 'Fresh Grocery', rating: 4.5, image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=800&q=80' },
-  { id: 2, name: 'iPhone 14 Pro', price: '850,000', unit: '', shop: 'Tech Gadgets Hub', rating: 4.8, image: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&q=80' },
-  { id: 3, name: 'Designer T-Shirt', price: '15,000', unit: '', shop: 'Fashion Boutique', rating: 4.3, image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&q=80' },
-  { id: 4, name: 'Organic Bananas', price: '800', unit: 'per bunch', shop: 'Fresh Grocery', rating: 4.6, image: 'https://images.unsplash.com/photo-1603833665858-e61d17a86224?w=800&q=80' },
+  { id: 1, name: 'Fresh Tomatoes', price: '₦1,200', unit: 'per kg', shop: 'Fresh Grocery', rating: 4.5, image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w-800&q=80' },
+  { id: 2, name: 'iPhone 14 Pro', price: '850,000', unit: '', shop: 'Tech Gadgets Hub', rating: 4.8, image: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w-800&q=80' },
+  { id: 3, name: 'Designer T-Shirt', price: '15,000', unit: '', shop: 'Fashion Boutique', rating: 4.3, image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w-800&q=80' },
+  { id: 4, name: 'Organic Bananas', price: '800', unit: 'per bunch', shop: 'Fresh Grocery', rating: 4.6, image: 'https://images.unsplash.com/photo-1603833665858-e61d17a86224?w-800&q=80' },
 ];
 
 // Fallback states in case API fails
@@ -31,6 +31,7 @@ const FALLBACK_STATES = [
 export default function App() {
   const [tab, setTab] = useState('markets');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showPromo, setShowPromo] = useState(true);
   
   // Use the markets hook
   const {
@@ -268,6 +269,26 @@ export default function App() {
     router.push(`/profile`);
   }
 
+  const handleNavClick = (route: string) => {
+    console.log('📍 Navigating to:', route);
+    switch (route) {
+      case 'explore':
+        router.push('/product-listing');
+        break;
+      case 'chat':
+        router.push('/chat');
+        break;
+      case 'profile':
+        router.push('/profile');
+        break;
+      case 'home':
+        router.push('/dashboard');
+        break;
+      default:
+        console.log('Navigation not implemented:', route);
+    }
+  }
+
   const handleViewAllProductsClick = () => {
   console.log('📦 Navigating to all products');
   router.push(`/products`);
@@ -388,7 +409,7 @@ export default function App() {
           </span>
         </h2>
         <button 
-          className="text-sm font-semibold text-gray-600 flex items-center gap-1 hover:text-gray-900"
+          className="text-sm font-semibold text-gray-600 flex items-center gap-1 hover:text-gray-900 cursor-pointer"
           onClick={handleViewAllMarketsClick}
         >
           View all <ChevronRight className="h-4 w-4" />
@@ -434,7 +455,7 @@ export default function App() {
                   </div>
                 </div>
                 <button 
-                  className="mt-4 w-full bg-gray-900 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-800 transition-colors"
+                  className="mt-4 w-full bg-gray-900 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation(); // Prevent double navigation
                     handleMarketClick(market._id, market.name);
@@ -511,7 +532,7 @@ export default function App() {
               {searchQuery && ` matching "${searchQuery}"`}
             </span>
           </h2>
-          <button className="text-sm font-semibold text-gray-600 flex items-center gap-1">
+          <button className="text-sm font-semibold text-gray-600 flex items-center gap-1 cursor-pointer">
             View all <ChevronRight className="h-4 w-4" />
           </button>
         </div>
@@ -557,7 +578,7 @@ export default function App() {
                           )}
                         </div>
                       </div>
-                      <button className="text-gray-400 hover:text-red-500 transition-colors">
+                      <button className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer">
                         <Heart className="h-5 w-5" />
                       </button>
                     </div>
@@ -622,7 +643,7 @@ export default function App() {
                     
                     <div className="flex gap-2 mt-4">
                       <button 
-                        className="flex-1 bg-gray-900 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-800 transition-colors"
+                        className="flex-1 bg-gray-900 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
                         onClick={(e) => {
                           e.stopPropagation();
                           router.push(`/vendor/${shop._id}`);
@@ -630,7 +651,7 @@ export default function App() {
                       >
                         Visit Vendor
                       </button>
-                      <button className="px-4 bg-white border border-gray-300 text-gray-900 text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1">
+                      <button className="px-4 bg-white border border-gray-300 text-gray-900 text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1 cursor-pointer">
                         <ShoppingBag className="h-4 w-4" />
                         Shop
                       </button>
@@ -700,7 +721,7 @@ export default function App() {
               {searchQuery && ` matching "${searchQuery}"`}
             </span>
           </h2>
-          <button className="text-sm font-semibold text-gray-600 flex items-center gap-1">
+          <button className="text-sm font-semibold text-gray-600 flex items-center gap-1 cursor-pointer">
             View all <ChevronRight className="h-4 w-4" />
           </button>
         </div>
@@ -757,7 +778,7 @@ export default function App() {
                       </div>
                     )}
                   </div>
-                  <button className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors bg-white rounded-full p-1.5 shadow-md">
+                  <button className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors bg-white rounded-full p-1.5 shadow-md cursor-pointer">
                     <Heart className="h-4 w-4" />
                   </button>
                 </div>
@@ -822,7 +843,7 @@ export default function App() {
                       className={`text-xs font-semibold px-3 py-2 rounded-lg transition-colors flex items-center gap-1 ${
                         isOutOfStock 
                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                          : 'bg-gray-900 text-white hover:bg-gray-800'
+                          : 'bg-gray-900 text-white hover:bg-gray-800 cursor-pointer'
                       }`}
                       disabled={isOutOfStock}
                       onClick={() => {
@@ -930,7 +951,7 @@ export default function App() {
                 <button
                   key={t}
                   onClick={() => setTab(t)}
-                  className={`text-sm font-semibold capitalize justify-between w-full ${tab === t ? 'text-gray-900 bg-white rounded-lg py-2' : 'text-gray-500'}`}
+                  className={`text-sm font-semibold capitalize justify-between w-full cursor-pointer ${tab === t ? 'text-gray-900 bg-white rounded-lg py-2' : 'text-gray-500'}`}
                 >
                   {t}
                 </button>
@@ -949,41 +970,35 @@ export default function App() {
           />
         </div>
 
-        <div className="mt-4 rounded-2xl bg-yellow-400 flex gap-3 w-full h-[12vh]">
-          <div className='w-[90%] flex items-center gap-3 justify-center m-auto'>
-            <div className="rounded-lg p-2.5">
-              <Bike className="h-8 w-8 text-black" />
+        {/* Promo Banner with Dismiss Button */}
+        {showPromo && (
+          <div className="mt-4 rounded-2xl bg-yellow-400 flex gap-3 w-full h-[12vh] min-h-[80px] relative">
+            <div className='flex items-center gap-3 justify-center m-auto pr-12'>
+              <div className="rounded-lg p-2.5 flex-shrink-0">
+                <Bike className="h-8 w-8 text-black" />
+              </div>
+              <div>
+                <div className="text-base font-bold mb-1 text-black">Browse shops → Order → We deliver</div>
+                <div className="text-sm text-gray-800">Local markets brought to your door</div>
+              </div>
             </div>
-            <div>
-              <div className="text-base font-bold mb-1 text-black">Browse shops → Order → We deliver</div>
-              <div className="text-sm text-gray-800">Local markets brought to your door</div>
-            </div>
+            {/* X Button to dismiss - Yellow background, black X, square border */}
+            <button
+              onClick={() => setShowPromo(false)}
+              className="absolute top-2 right-2 w-8 h-8 bg-yellow-400 border-2 border-black rounded-lg flex items-center justify-center cursor-pointer hover:bg-yellow-500 transition-colors flex-shrink-0"
+              aria-label="Dismiss banner"
+            >
+              <X className="h-5 w-5 text-black" />
+            </button>
           </div>
-        </div>
+        )}
 
         {renderTabContent()}
       </main>
 
-      {/* <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-20">
-        <div className="flex items-center gap-1 bg-gray-900 rounded-full px-2 py-2 shadow-lg">
-          <button onClick={NavigateProfile} className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center transition-colors">
-            <span className="text-white text-lg"><User /></span>
-          </button>
-          <button className="px-6 py-2 text-white text-sm font-medium hover:bg-gray-800 rounded-full transition-colors">
-            Chat
-          </button>
-          <button className="px-6 py-2 bg-white text-gray-900 text-sm font-medium rounded-full hover:bg-gray-100 transition-colors">
-            Preview
-          </button>
-          <button onClick={NavigateVendor} className="w-10 h-10 rounded-full bg-blue-500 hover:bg-blue-600 flex items-center justify-center transition-colors">
-            <Plus className="h-5 w-5 text-white" />
-          </button>
-        </div>
-      </nav> */}
-
       <BottomNav
-        onNavigateProfile={NavigateProfile}
-        onNavigateVendor={NavigateVendor}
+        onNavigate={handleNavClick}
+        activeRoute="home"
       />
         
     </div>
