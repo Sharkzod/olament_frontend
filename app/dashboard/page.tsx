@@ -312,28 +312,28 @@ export default function App() {
 
   // Memoized search filtering for shops
   const searchFilteredShops = useMemo(() => {
-    if (!searchQuery) return shopsFiltered;
-    
-    return shopsFiltered.filter(shop => 
-      shop.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      shop.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      shop.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  }, [shopsFiltered, searchQuery]);
+  if (!searchQuery) return shopsFiltered;
+  
+  return shopsFiltered.filter(shop => 
+    shop.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    shop.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    shop.tags?.some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+}, [shopsFiltered, searchQuery]);
 
   // Memoized search filtering for products - use apiProducts from hook
   const searchFilteredProducts = useMemo(() => {
-    const productsToFilter = apiProducts.length > 0 ? apiProducts : productsFiltered;
-    
-    if (!searchQuery) return productsToFilter;
-    
-    return productsToFilter.filter(product => 
-      product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  }, [apiProducts, productsFiltered, searchQuery]);
+  const productsToFilter = apiProducts.length > 0 ? apiProducts : productsFiltered;
+  
+  if (!searchQuery) return productsToFilter;
+  
+  return productsToFilter.filter(product => 
+    product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.tags?.some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+}, [apiProducts, productsFiltered, searchQuery]);
 
   const NavigateVendor = () => {
     router.push(`/vendor`);
