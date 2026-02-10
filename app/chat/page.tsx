@@ -1,7 +1,7 @@
 // app/chat/[id]/page.tsx - Simplified version
 'use client';
 
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useChatMessages } from '@/app/lib/hooks/useChatMessages';
 import { useSocketChat } from '@/app/lib/hooks/useSocketChat';
@@ -335,6 +335,14 @@ const transformedMessages = useMemo(() => {
 }
 
   return (
+    <Suspense fallback={
+      <div className="h-screen bg-gray-50 flex flex-col items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mb-4"></div>
+          <p className="text-sm text-gray-600 font-medium">Loading chat...</p>
+        </div>
+      </div>
+    }>
     <div className="h-screen flex flex-col bg-gray-50">
       <ChatHeader
         participant={participant}
@@ -360,5 +368,6 @@ const transformedMessages = useMemo(() => {
         />
       </div>
     </div>
+    </Suspense>
   );
 }
