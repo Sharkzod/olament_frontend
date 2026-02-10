@@ -304,6 +304,7 @@ const isValidChatId = (id: string): boolean => {
 };
 
 // Export a simpler version for basic usage
+// Export a simpler version for basic usage
 export const useSimpleChats = (options: UseChatsOptions = {}) => {
   const {
     params = { limit: 100 },
@@ -325,7 +326,16 @@ export const useSimpleChats = (options: UseChatsOptions = {}) => {
         const formattedChats = response.data.map(formatChatData);
         setChats(formattedChats);
       } else {
-        throw new Error(response.message || 'Failed to fetch chats');
+        // Apply the same fix as in useChats
+        const errorMessage = 
+          typeof response === 'object' && response !== null
+            ? (response as any).message || 
+              (response as any).error || 
+              (response as any).errorMessage || 
+              'Failed to fetch chats'
+            : 'Failed to fetch chats';
+        
+        throw new Error(errorMessage);
       }
     } catch (err: any) {
       console.error('Error fetching chats:', err);
