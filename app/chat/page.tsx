@@ -248,27 +248,26 @@ useEffect(() => {
 // Then update the transformation based on what you find:
 const transformedMessages = useMemo(() => {
   return messages.map(message => {
-    // Determine the timestamp - try different possible fields
-    let timestamp: Date;
-    
-    if (message.timestamp && typeof message.timestamp === 'string') {
-      timestamp = new Date(message.timestamp);
-    } else if (message.createdAt && typeof message.createdAt === 'string') {
-      timestamp = new Date(message.createdAt);
-    } else if (message.timestamp instanceof Date) {
-      timestamp = message.timestamp;
-    } else if (message.createdAt instanceof Date) {
-      timestamp = message.createdAt;
-    } else {
-      // Fallback to current date
-      timestamp = new Date();
-    }
-    
-    return {
+    // Create a new message object with proper types
+    const transformedMessage = {
       ...message,
       conversationId: conversationId || '',
-      timestamp, // Use the determined timestamp
+      // Convert string timestamps to Date objects
+      timestamp: message.timestamp 
+        ? (typeof message.timestamp === 'string' 
+            ? new Date(message.timestamp) 
+            : message.timestamp instanceof Date 
+              ? message.timestamp 
+              : new Date())
+        : new Date(),
     };
+    
+    // Also convert createdAt if it exists
+    if (message.createdAt && typeof message.createdAt === 'string') {
+      (transformedMessage as any).createdAt = new Date(message.createdAt);
+    }
+    
+    return transformedMessage;
   });
 }, [messages, conversationId]);
 
