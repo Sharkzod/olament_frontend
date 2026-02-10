@@ -24,6 +24,7 @@ import { useShop } from '@/app/lib/hooks/useShop';
 import { shopApi } from '@/app/lib/api/shopApi';
 
 // Types
+// Update the ShopProfile interface to match the API response
 interface ShopProfile {
   _id: string;
   name: string;
@@ -32,10 +33,10 @@ interface ShopProfile {
   totalReviews: number;
   isVerified: boolean;
   isActive: boolean;
-  status?: 'open' | 'closed' | 'busy'; // Make it optional and add 'busy'
+  status?: 'open' | 'closed' | 'busy';
   imageUrl?: string;
   logo?: string;
-  tags: string[];
+  tags?: string[]; // Changed from tags: string[] to tags?: string[]
   productsCount: number;
   deliveryFee?: number;
   minimumOrder?: number;
@@ -45,6 +46,8 @@ interface ShopProfile {
     name: string;
   };
 }
+
+
 // Filter options
 const CATEGORIES = [
   'All Categories',
