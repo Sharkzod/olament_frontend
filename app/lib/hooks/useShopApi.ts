@@ -22,7 +22,7 @@ export const useShopById = (identifier: string) => {
 export const useMyShop = () => {
   return useQuery({
     queryKey: ['myShop'],
-    queryFn: () => shopApi.getMyShop(),
+    queryFn: () => shopApi.getMyShops(),
     select: (data) => data.data,
   });
 };
