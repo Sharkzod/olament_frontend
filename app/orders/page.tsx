@@ -215,20 +215,32 @@ export default function ChatListPage() {
 
   // Fetch chats using the custom hook
   const {
-    chats,
-    pagination,
-    isLoading,
-    error,
-    refetch,
-    isEmpty,
-    totalUnread,
-  } = useChats({
-    params: {
-      page: 1,
-      limit: 50, // Fetch more chats initially
-    },
-    autoFetch: true,
-  });
+  chats,
+  // pagination, // Remove this - doesn't exist
+  // isLoading, // Change to loading (note the difference)
+  loading: isLoading,
+  error,
+  // refetch, // Change to refreshChats
+  refreshChats: refetch,
+  // isEmpty, // Remove this - doesn't exist
+  // totalUnread, // Remove this - doesn't exist
+  hasMore,
+  page,
+  total,
+} = useChats({
+  params: {
+    page: 1,
+    limit: 50,
+  },
+  autoFetch: true,
+});
+
+const isEmpty = !isLoading && chats.length === 0;
+
+// Calculate totalUnread by summing unreadCount from all chats
+const totalUnread = useMemo(() => {
+  return chats.reduce((sum, chat) => sum + (chat.unreadCount || 0), 0);
+}, [chats]);
 
   // Get current user ID (you should replace this with actual auth context)
   const currentUserId = 'user1'; // TODO: Get from auth context
