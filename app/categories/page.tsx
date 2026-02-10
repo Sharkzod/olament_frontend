@@ -818,14 +818,7 @@ useEffect(() => {
 
   // Products View - KEEP REST AS BEFORE
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading categories...</p>
-        </div>
-      </div>
-    }>
+
     <div className="min-h-screen bg-gray-50">
       {/* ... Rest of the products view code stays the same ... */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -1022,7 +1015,7 @@ useEffect(() => {
       </main>
 
     </div>
-    </Suspense>
+    
   );
 }
 
