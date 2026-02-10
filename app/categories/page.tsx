@@ -786,15 +786,25 @@ useEffect(() => {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {categoriesWithColors.map((category, index) => (
-                  <CategoryCard
-                    key={category._id || category.id || index}
-                    category={category}
-                    colorClass={category.color}
-                    productCount={categoryCounts[category._id || category.id]}
-                    onClick={() => handleCategorySelect(category.slug || category.name)}
-                  />
-                ))}
+                {!categoriesLoading && categories.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {categoriesWithColors.map((category, index) => {
+                        // Safely get the category ID for the productCount lookup
+                        const categoryId = category._id || category.id;
+                        const productCount = categoryId ? categoryCounts[categoryId] : undefined;
+                        
+                        return (
+                          <CategoryCard
+                            key={category._id || category.id || index}
+                            category={category}
+                            colorClass={category.color}
+                            productCount={productCount}
+                            onClick={() => handleCategorySelect(category.slug || category.name)}
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
               </div>
             )}
           </div>
