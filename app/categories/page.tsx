@@ -582,44 +582,51 @@ export default function CategoriesPage() {
   });
 
   // NEW: Fetch product counts for all categories
-  useEffect(() => {
-    const fetchCategoryCounts = async () => {
-      if (categories.length === 0 || loadingCounts) return;
-      
-      setLoadingCounts(true);
-      const counts: Record<string, number> = {};
-      
-      try {
-        // Fetch counts for all categories in parallel (limit to prevent server overload)
-        const countPromises = categories.map(async (category) => {
-          try {
-            const response = await getProductsByCategory(
-              category.slug || category.name,
-              { limit: 1, page: 1 } // Only need pagination info
-            );
-            const categoryId = category._id || category.id;
+  // NEW: Fetch product counts for all categories
+useEffect(() => {
+  const fetchCategoryCounts = async () => {
+    if (categories.length === 0 || loadingCounts) return;
+    
+    setLoadingCounts(true);
+    const counts: Record<string, number> = {};
+    
+    try {
+      // Fetch counts for all categories in parallel (limit to prevent server overload)
+      const countPromises = categories.map(async (category) => {
+        try {
+          const response = await getProductsByCategory(
+            category.slug || category.name,
+            { limit: 1, page: 1 } // Only need pagination info
+          );
+          const categoryId = category._id || category.id;
+          // FIX: Add check for undefined categoryId
+          if (categoryId) {
             counts[categoryId] = response.totalDocs || response.totalCategoryProducts || 0;
-          } catch (error) {
-            console.error(`Failed to fetch count for ${category.name}:`, error);
-            const categoryId = category._id || category.id;
+          }
+        } catch (error) {
+          console.error(`Failed to fetch count for ${category.name}:`, error);
+          const categoryId = category._id || category.id;
+          // FIX: Add check for undefined categoryId
+          if (categoryId) {
             counts[categoryId] = 0;
           }
-        });
-        
-        await Promise.all(countPromises);
-        setCategoryCounts(counts);
-      } catch (error) {
-        console.error('Error fetching category counts:', error);
-      } finally {
-        setLoadingCounts(false);
-      }
-    };
-    
-    // Only fetch counts when viewing categories and categories are loaded
-    if (!categoriesLoading && categories.length > 0 && viewMode === 'categories') {
-      fetchCategoryCounts();
+        }
+      });
+      
+      await Promise.all(countPromises);
+      setCategoryCounts(counts);
+    } catch (error) {
+      console.error('Error fetching category counts:', error);
+    } finally {
+      setLoadingCounts(false);
     }
-  }, [categories, categoriesLoading, viewMode]);
+  };
+  
+  // Only fetch counts when viewing categories and categories are loaded
+  if (!categoriesLoading && categories.length > 0 && viewMode === 'categories') {
+    fetchCategoryCounts();
+  }
+}, [categories, categoriesLoading, viewMode]);
 
   // Assign colors to categories
   const categoriesWithColors = useMemo(() => {
