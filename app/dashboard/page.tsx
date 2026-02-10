@@ -53,7 +53,7 @@ export default function App() {
     loading: shopsLoading,
     error: shopsError,
     totalShops,
-    getAllShops,
+    // getAllShops,
   } = useShop();
 
   // Use the products hook
