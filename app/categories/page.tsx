@@ -534,7 +534,7 @@ const Skeleton: React.FC<{ className?: string }> = ({ className = '' }) => {
 };
 
 // Main Categories Page
-export default function CategoriesPage() {
+function CategoriesPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
@@ -1022,6 +1022,21 @@ useEffect(() => {
       </main>
 
     </div>
+    </Suspense>
+  );
+}
+
+export default function CategoriesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading categories...</p>
+        </div>
+      </div>
+    }>
+      <CategoriesPageContent />
     </Suspense>
   );
 }
