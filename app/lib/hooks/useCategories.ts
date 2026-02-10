@@ -85,16 +85,17 @@ export const useCategories = ({
   const isFetchingRef = useRef(false);
   const hasFetchedRef = useRef(false);
 
-  const fetchCategories = useCallback(async (customParams?: any) => {
-    // Prevent duplicate simultaneous requests
-    if (isFetchingRef.current) {
-      console.log('⏸️ useCategories - Skipping duplicate request');
-      return;
-    }
-    
-    setIsLoading(true);
-    setError(null);
-    isFetchingRef.current = true;
+  
+const fetchCategories = useCallback(async (customParams?: any) => {
+  // Prevent duplicate simultaneous requests
+  if (isFetchingRef.current) {
+    console.log('⏸️ useCategories - Skipping duplicate request');
+    return;
+  }
+  
+  setIsLoading(true);
+  setError(null);
+  isFetchingRef.current = true;
     
     try {
       // Merge default params with custom ones
@@ -105,7 +106,7 @@ export const useCategories = ({
         mergedParams.limit = 100;
       }
       
-      const response = await getAllCategories(mergedParams);
+      const response = await getAllCategories();
       
       console.log('🔍 useCategories - Raw API response:', response);
       
