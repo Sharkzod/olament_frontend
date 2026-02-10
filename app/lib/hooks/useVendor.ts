@@ -92,18 +92,23 @@ export const useVendor = (): UseVendorReturn => {
         const vendorData = {
           ...response.data,
           // Ensure shops array exists with proper structure
-          shops: (response.data.shops || []).map(shop => ({
+          // Ensure shops array exists with proper structure
+        shops: (response.data.shops || []).map(shop => {
+          // Cast shop to any to access potentially missing properties
+          const shopData = shop as any;
+          return {
             ...shop,
             // Add missing fields that your UI expects
-            isActive: shop.isActive !== undefined ? shop.isActive : true,
-            productsCount: shop.productsCount || 0,
-            totalReviews: shop.totalReviews || 0,
-            address: shop.address || '',
-            description: shop.description || '',
-            marketId: shop.marketId || null,
+            isActive: shopData.isActive !== undefined ? shopData.isActive : true,
+            productsCount: shopData.productsCount || 0,
+            totalReviews: shopData.totalReviews || 0,
+            address: shopData.address || '',
+            description: shopData.description || '',
+            marketId: shopData.marketId || null,
             // Use _id as id if not present
-            id: shop.id || shop._id
-          }))
+            id: shopData.id || shopData._id
+          };
+        })
         };
 
         console.log('Setting vendor profile:', vendorData);
