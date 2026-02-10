@@ -346,7 +346,7 @@ const totalUnread = useMemo(() => {
           </div>
         )}
         
-        {!isLoading && !error && filteredChats.length > 0 && (
+              {!isLoading && !error && filteredChats.length > 0 && (
           <>
             {filteredChats.map((chat) => (
               <ChatPreviewItem
@@ -357,10 +357,11 @@ const totalUnread = useMemo(() => {
               />
             ))}
             
-            {/* Pagination info */}
-            {pagination && pagination.pages > 1 && (
+            {/* Show pagination info using available variables */}
+            {hasMore && (
               <div className="px-4 py-3 text-center text-sm text-gray-500 border-t border-gray-100">
-                Page {pagination.page} of {pagination.pages}
+                Page {page} • Showing {chats.length} of {total} chats
+                {hasMore && " • Scroll to load more"}
               </div>
             )}
           </>
