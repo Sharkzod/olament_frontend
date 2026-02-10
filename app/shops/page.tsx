@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams  } from 'next/navigation';
 import { 
   MapPin, 
@@ -71,7 +71,7 @@ const SORT_OPTIONS = [
   { value: 'name', label: 'Alphabetical' },
 ];
 
-export default function ShopListPage() {
+function ShopListPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -844,5 +844,21 @@ export default function ShopListPage() {
         </button>
       </nav>
     </div>
+  );
+}
+
+
+export default function ShopListPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading shops...</p>
+        </div>
+      </div>
+    }>
+      <ShopListPageContent />
+    </Suspense>
   );
 }
