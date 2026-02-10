@@ -32,7 +32,7 @@ interface ShopProfile {
   totalReviews: number;
   isVerified: boolean;
   isActive: boolean;
-  status: 'open' | 'closed';
+  status?: 'open' | 'closed' | 'busy'; // Make it optional and add 'busy'
   imageUrl?: string;
   logo?: string;
   tags: string[];
@@ -45,7 +45,6 @@ interface ShopProfile {
     name: string;
   };
 }
-
 // Filter options
 const CATEGORIES = [
   'All Categories',
@@ -260,7 +259,8 @@ export default function ShopListPage() {
 
   // Render shop card (Grid view)
   const renderShopCard = (shop: ShopProfile) => {
-    const isOpen = shop.isActive && shop.status !== 'closed';
+    const isOpen = shop.isActive && shop.status !== 'closed' && shop.status !== 'busy';
+
     
     return (
       <div key={shop._id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
