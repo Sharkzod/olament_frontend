@@ -706,10 +706,10 @@ export default function App() {
                         </>
                       )}
                     </div>
-                    
-                    {shop.tags && shop.tags.length > 0 && (
+                                        
+                     {shop.tags && shop.tags.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1">
-                        {shop.tags.slice(0, 3).map(tag => (
+                        {shop.tags.slice(0, 3).map((tag: string) => (
                           <span 
                             key={tag} 
                             className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"
@@ -724,7 +724,7 @@ export default function App() {
                         )}
                       </div>
                     )}
-                    
+                                        
                     <div className="flex gap-2 mt-4">
                       <button 
                         className="flex-1 bg-gray-900 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
