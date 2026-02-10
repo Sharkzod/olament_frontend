@@ -249,44 +249,12 @@ useEffect(() => {
 const transformedMessages = useMemo(() => {
   return messages.map(message => {
     // Create a new message object with proper types
-    const transformedMessage = {
+    return {
       ...message,
       conversationId: conversationId || '',
-      // Convert string timestamps to Date objects
-      timestamp: (() => {
-        const ts = message.timestamp;
-        if (!ts) return new Date();
-        
-        // Check if it's already a Date object
-        if (ts instanceof Date) {
-          return ts;
-        }
-        
-        // Check if it's a string
-        if (typeof ts === 'string') {
-          return new Date(ts);
-        }
-        
-        // Check if it's a number (timestamp)
-        if (typeof ts === 'number') {
-          return new Date(ts);
-        }
-        
-        // Fallback
-        return new Date();
-      })(),
+      // Always try to create a Date - new Date() can handle strings, numbers, and Date objects
+      timestamp: new Date(message.timestamp || message.createdAt || Date.now()),
     };
-    
-    // Also convert createdAt if it exists
-    if (message.createdAt) {
-      if (typeof message.createdAt === 'string') {
-        (transformedMessage as any).createdAt = new Date(message.createdAt);
-      } else if (message.createdAt instanceof Date) {
-        (transformedMessage as any).createdAt = message.createdAt;
-      }
-    }
-    
-    return transformedMessage;
   });
 }, [messages, conversationId]);
 
