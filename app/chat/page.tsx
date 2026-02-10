@@ -317,6 +317,23 @@ const transformedMessages = useMemo(() => {
     );
   }
 
+
+  if (!participant) {
+  return (
+    <div className="h-screen bg-gray-50 flex flex-col items-center justify-center">
+      <div className="text-center px-4">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Unable to load chat participant</h3>
+        <button
+          onClick={() => router.push('/orders')}
+          className="px-6 py-2.5 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
+        >
+          Go to Messages
+        </button>
+      </div>
+    </div>
+  );
+}
+
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       <ChatHeader
@@ -325,7 +342,7 @@ const transformedMessages = useMemo(() => {
         isMobile={isMobile}
       />
       <div className="flex-1 overflow-hidden">
-            <ChatWindow
+             <ChatWindow
               messages={transformedMessages}
               participant={participant}
               currentUserId={currentUserId}
