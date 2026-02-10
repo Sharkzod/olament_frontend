@@ -11,7 +11,14 @@ export interface VendorStatus {
 
 export const useVendorCheck = () => {
   const router = useRouter();
-  const { user, token } = useAuth();
+  const { user } = useAuth(); // Only get user, not token
+  
+  // Helper function to get token from storage
+  const getToken = useCallback((): string | null => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+  }, []);
+  
   const [vendorStatus, setVendorStatus] = useState<VendorStatus>({
     isVendor: false,
     isApproved: false,
@@ -20,6 +27,7 @@ export const useVendorCheck = () => {
   });
 
   const checkVendorStatus = useCallback(async (): Promise<VendorStatus> => {
+    const token = getToken();
     if (!user || !token) {
       return { isVendor: false, isApproved: false, isLoading: false, error: 'Not authenticated' };
     }
@@ -60,7 +68,7 @@ export const useVendorCheck = () => {
         error: 'Failed to check vendor status'
       };
     }
-  }, [user, token]);
+  }, [user, getToken]); // Add getToken to dependencies
 
   useEffect(() => {
     const initializeCheck = async () => {
@@ -73,12 +81,12 @@ export const useVendorCheck = () => {
       }
     };
 
-    if (user && token) {
+    if (user) {
       initializeCheck();
     } else {
       setVendorStatus(prev => ({ ...prev, isLoading: false }));
     }
-  }, [user, token, router, checkVendorStatus]);
+  }, [user, router, checkVendorStatus]); // Remove token from dependencies
 
   return {
     ...vendorStatus,
