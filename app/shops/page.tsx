@@ -36,17 +36,18 @@ interface ShopProfile {
   status?: 'open' | 'closed' | 'busy';
   imageUrl?: string;
   logo?: string;
-  tags?: string[]; // Changed from tags: string[] to tags?: string[]
+  tags?: string[];
   productsCount: number;
   deliveryFee?: number;
   minimumOrder?: number;
   address?: string;
   marketId?: {
-    city: string;
-    name: string;
+    _id?: string;
+    name?: string;
+    city?: string;
+    state?: string;
   };
 }
-
 
 // Filter options
 const CATEGORIES = [
