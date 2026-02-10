@@ -80,19 +80,19 @@ export const useVendor = (): UseVendorReturn => {
   }, []);
 
   // Get vendor profile
-  const getVendorProfile = async () => {
-    setLoading(true);
-    try {
-      const response = await vendorApi.getVendorProfile();
+// Get vendor profile
+const getVendorProfile = async (): Promise<{ success: boolean; profile?: VendorProfile; error?: string }> => {
+  setLoading(true);
+  try {
+    const response = await vendorApi.getVendorProfile();
 
-      console.log('Hook received response:', response);
+    console.log('Hook received response:', response);
 
-      // Response is { success: true, data: { businessName: "", ... } }
-      if (response.success && response.data) {
-        const vendorData = {
-          ...response.data,
-          // Ensure shops array exists with proper structure
-          // Ensure shops array exists with proper structure
+    // Response is { success: true, data: { businessName: "", ... } }
+    if (response.success && response.data) {
+      const vendorData = {
+        ...response.data,
+        // Ensure shops array exists with proper structure
         shops: (response.data.shops || []).map(shop => {
           // Cast shop to any to access potentially missing properties
           const shopData = shop as any;
@@ -109,32 +109,34 @@ export const useVendor = (): UseVendorReturn => {
             id: shopData.id || shopData._id
           };
         })
-        };
+      };
 
-        console.log('Setting vendor profile:', vendorData);
-        setVendorProfile(vendorData);
-        return { success: true, profile: vendorData };
-      } else {
-        console.log('No vendor profile found');
-        setVendorProfile(null);
-        return { success: true, profile: null };
-      }
-    } catch (error: any) {
-      console.error('Failed to get vendor profile:', error);
-
-      // Check if it's a 404 (profile doesn't exist)
-      if (error.response?.status === 404) {
-        console.log('Vendor profile not found (404)');
-        setVendorProfile(null);
-        return { success: true, profile: null };
-      }
-
-      setError(error.message || 'Failed to load vendor profile');
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
+      console.log('Setting vendor profile:', vendorData);
+      setVendorProfile(vendorData);
+      return { success: true, profile: vendorData };
+    } else {
+      console.log('No vendor profile found');
+      setVendorProfile(null);
+      // Return undefined instead of null for profile
+      return { success: true };
     }
-  };
+  } catch (error: any) {
+    console.error('Failed to get vendor profile:', error);
+
+    // Check if it's a 404 (profile doesn't exist)
+    if (error.response?.status === 404) {
+      console.log('Vendor profile not found (404)');
+      setVendorProfile(null);
+      // Return undefined instead of null for profile
+      return { success: true };
+    }
+
+    setError(error.message || 'Failed to load vendor profile');
+    return { success: false, error: error.message };
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Get shops by owner ID
   const getShopsByOwnerId = useCallback(async (ownerId: string): Promise<{ success: boolean; shops?: Shop[]; error?: string }> => {
