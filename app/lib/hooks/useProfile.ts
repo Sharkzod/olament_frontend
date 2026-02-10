@@ -163,9 +163,9 @@ export const useProfile = (): UseProfileReturn => {
         return { success: false, error: errorMsg };
       }
 
-      console.log('👤 useProfile: Fetching from:', `${API_URL}/users/profile`);
+      console.log('👤 useProfile: Fetching from:', `${API_URL}/auth/profile`);
 
-      const response = await fetch(`${API_URL}/users/profile`, {
+      const response = await fetch(`${API_URL}/auth/profile`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -237,7 +237,7 @@ export const useProfile = (): UseProfileReturn => {
         return { success: false, error: errorMsg };
       }
 
-      const response = await fetch(`${API_URL}/users/profile`, {
+      const response = await fetch(`${API_URL}/auth/profile`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -297,7 +297,7 @@ export const useProfile = (): UseProfileReturn => {
         return { success: false, error: errorMsg };
       }
 
-      const response = await fetch(`${API_URL}/users/profile/avatar`, {
+      const response = await fetch(`${API_URL}/auth/profile/avatar`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -360,7 +360,7 @@ export const useProfile = (): UseProfileReturn => {
         return { success: false, error: errorMsg };
       }
 
-      const response = await fetch(`${API_URL}/users/change-password`, {
+      const response = await fetch(`${API_URL}/auth/change-password`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
