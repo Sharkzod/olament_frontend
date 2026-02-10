@@ -253,18 +253,37 @@ const transformedMessages = useMemo(() => {
       ...message,
       conversationId: conversationId || '',
       // Convert string timestamps to Date objects
-      timestamp: message.timestamp 
-        ? (typeof message.timestamp === 'string' 
-            ? new Date(message.timestamp) 
-            : message.timestamp instanceof Date 
-              ? message.timestamp 
-              : new Date())
-        : new Date(),
+      timestamp: (() => {
+        const ts = message.timestamp;
+        if (!ts) return new Date();
+        
+        // Check if it's already a Date object
+        if (ts instanceof Date) {
+          return ts;
+        }
+        
+        // Check if it's a string
+        if (typeof ts === 'string') {
+          return new Date(ts);
+        }
+        
+        // Check if it's a number (timestamp)
+        if (typeof ts === 'number') {
+          return new Date(ts);
+        }
+        
+        // Fallback
+        return new Date();
+      })(),
     };
     
     // Also convert createdAt if it exists
-    if (message.createdAt && typeof message.createdAt === 'string') {
-      (transformedMessage as any).createdAt = new Date(message.createdAt);
+    if (message.createdAt) {
+      if (typeof message.createdAt === 'string') {
+        (transformedMessage as any).createdAt = new Date(message.createdAt);
+      } else if (message.createdAt instanceof Date) {
+        (transformedMessage as any).createdAt = message.createdAt;
+      }
     }
     
     return transformedMessage;
