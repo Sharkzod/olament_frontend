@@ -1,5 +1,5 @@
-// lib/hooks/useMarkets.ts - SIMPLIFIED FIX
-import { useState, useCallback, useEffect } from 'react';
+// lib/hooks/useMarkets.ts - OPTIMIZED TO PREVENT INFINITE LOOPS
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { marketApi, Market, MarketResponse, StatesResponse } from '../api/marketApi';
 
 interface UseMarketsReturn {
@@ -29,10 +29,22 @@ export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Refs to prevent duplicate requests
+  const isFetchingRef = useRef(false);
+  const hasInitializedRef = useRef(false);
+  const lastStateRef = useRef<string>('');
+  const lastCityRef = useRef<string>('');
+
   // Get available states
   const getAvailableStates = useCallback(async (): Promise<{ success: boolean; states?: string[]; error?: string }> => {
+    if (isFetchingRef.current) {
+      console.log('⏸️ useMarkets: Skipping duplicate states request');
+      return { success: false, error: 'Already fetching' };
+    }
+
     setLoading(true);
     setError(null);
+    isFetchingRef.current = true;
     
     try {
       console.log('🏪 useMarkets: Getting available states...');
@@ -55,44 +67,46 @@ export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
       return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
-  }, []);
+  }, []); // Empty deps - stable function
 
   // Helper function to extract market data from various response formats
-  const extractMarketData = (response: any): Market[] => {
-    // If response is already an array of markets
+  const extractMarketData = useCallback((response: any): Market[] => {
     if (Array.isArray(response)) {
       return response;
     }
     
-    // If response has data property that's an array
     if (response?.data && Array.isArray(response.data)) {
       return response.data;
     }
     
-    // If response has data.markets
     if (response?.data?.markets && Array.isArray(response.data.markets)) {
       return response.data.markets;
     }
     
-    // If response has markets property directly
     if (response?.markets && Array.isArray(response.markets)) {
       return response.markets;
     }
     
-    // If response.data is an object with markets (using type assertion to bypass TypeScript)
     const data = response?.data;
     if (data && typeof data === 'object' && 'markets' in data && Array.isArray((data as any).markets)) {
       return (data as any).markets;
     }
     
     return [];
-  };
+  }, []);
 
   // Get markets by state
   const getMarketsByState = useCallback(async (state: string): Promise<{ success: boolean; markets?: Market[]; error?: string }> => {
+    if (isFetchingRef.current) {
+      console.log('⏸️ useMarkets: Skipping duplicate markets request');
+      return { success: false, error: 'Already fetching' };
+    }
+
     setLoading(true);
     setError(null);
+    isFetchingRef.current = true;
     
     try {
       console.log('🏪 useMarkets: Getting markets by state:', state);
@@ -101,14 +115,12 @@ export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
       console.log('🏪 useMarkets: Raw API response:', response);
       
       if (response?.success === false) {
-        // If markets not found but API returns success: false with message
         const errorMsg = response.message || 'No markets found';
         setError(errorMsg);
         setMarkets([]);
         return { success: false, error: errorMsg };
       }
       
-      // Extract market data using helper function
       const marketData = extractMarketData(response);
       
       console.log('🏪 useMarkets: Extracted market data:', marketData);
@@ -131,13 +143,20 @@ export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
       return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
-  }, []);
+  }, [extractMarketData]); // Only depend on extractMarketData
 
   // Get markets by state and city
   const getMarketsByStateAndCity = useCallback(async (state: string, city: string): Promise<{ success: boolean; markets?: Market[]; error?: string }> => {
+    if (isFetchingRef.current) {
+      console.log('⏸️ useMarkets: Skipping duplicate markets request');
+      return { success: false, error: 'Already fetching' };
+    }
+
     setLoading(true);
     setError(null);
+    isFetchingRef.current = true;
     
     try {
       console.log('🏪 useMarkets: Getting markets by state and city:', { state, city });
@@ -152,7 +171,6 @@ export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
         return { success: false, error: errorMsg };
       }
       
-      // Extract market data using helper function
       const marketData = extractMarketData(response);
       
       if (marketData.length > 0) {
@@ -173,19 +191,25 @@ export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
       return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
-  }, []);
+  }, [extractMarketData]);
 
   // Get all markets
   const getAllMarkets = useCallback(async (): Promise<{ success: boolean; markets?: Market[]; error?: string }> => {
+    if (isFetchingRef.current) {
+      console.log('⏸️ useMarkets: Skipping duplicate markets request');
+      return { success: false, error: 'Already fetching' };
+    }
+
     setLoading(true);
     setError(null);
+    isFetchingRef.current = true;
     
     try {
       console.log('🏪 useMarkets: Getting all markets...');
       const response = await marketApi.getAllMarkets();
       
-      // Extract market data using helper function
       const marketData = extractMarketData(response);
       
       if (marketData.length > 0) {
@@ -206,8 +230,9 @@ export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
       return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
-  }, []);
+  }, [extractMarketData]);
 
   // Refresh markets based on current selections
   const refreshMarkets = useCallback(async () => {
@@ -218,20 +243,52 @@ export const useMarkets = (initialState = "Lagos"): UseMarketsReturn => {
     }
   }, [selectedState, selectedCity, getMarketsByState, getMarketsByStateAndCity]);
 
-  // Initialize states on mount
+  // Initialize states on mount ONLY ONCE
   useEffect(() => {
+    if (hasInitializedRef.current) {
+      console.log('⏸️ useMarkets: Already initialized, skipping');
+      return;
+    }
+
     const initializeData = async () => {
+      console.log('🔄 useMarkets: Initializing data...');
+      hasInitializedRef.current = true;
+      
       await getAvailableStates();
-      await getMarketsByState(selectedState);
+      await getMarketsByState(initialState);
     };
     
     initializeData();
-  }, [getAvailableStates, getMarketsByState, selectedState]);
+  }, []); // Empty deps - only run once on mount
 
-  // Fetch markets when selected state or city changes
+  // Fetch markets when selected state or city changes (but not on initial mount)
   useEffect(() => {
-    refreshMarkets();
-  }, [selectedState, selectedCity, refreshMarkets]);
+    // Skip if not initialized yet
+    if (!hasInitializedRef.current) {
+      return;
+    }
+
+    // Skip if state/city haven't actually changed
+    if (selectedState === lastStateRef.current && selectedCity === lastCityRef.current) {
+      return;
+    }
+
+    console.log('🔄 useMarkets: State/City changed, fetching markets...', {
+      from: { state: lastStateRef.current, city: lastCityRef.current },
+      to: { state: selectedState, city: selectedCity }
+    });
+
+    // Update refs
+    lastStateRef.current = selectedState;
+    lastCityRef.current = selectedCity;
+
+    // Fetch markets
+    if (selectedCity && selectedCity.toLowerCase() !== 'all') {
+      getMarketsByStateAndCity(selectedState, selectedCity);
+    } else {
+      getMarketsByState(selectedState);
+    }
+  }, [selectedState, selectedCity]); // Only depend on state/city changes
 
   return {
     markets,

@@ -51,22 +51,18 @@ export const login = async (data: LoginData) => {
   } catch (error: any) {
     console.error('❌ authApi: Login error:', error);
     
-    // Handle different error types
     if (error.response) {
-      // Server responded with error status
       return {
         success: false,
         error: error.response.data?.message || 'Login failed. Please check your credentials.',
         status: error.response.status
       };
     } else if (error.request) {
-      // Request made but no response
       return {
         success: false,
         error: 'Unable to connect to server. Please check your internet connection.'
       };
     } else {
-      // Something else happened
       return {
         success: false,
         error: 'An unexpected error occurred. Please try again.'
@@ -80,11 +76,10 @@ export const signup = async (data: SignupData) => {
   console.log('📝 authApi: Attempting signup with email:', data.email);
   
   try {
-    // Prepare data for backend - combine first and last name
     const backendData = {
       firstName: data.firstName,
       lastName: data.lastName,
-      name: `${data.firstName} ${data.lastName}`, // Add name field for backend
+      name: `${data.firstName} ${data.lastName}`,
       email: data.email,
       password: data.password,
       role: data.role,
@@ -121,9 +116,7 @@ export const signup = async (data: SignupData) => {
   } catch (error: any) {
     console.error('❌ authApi: Signup error:', error);
     
-    // Handle different error types
     if (error.response) {
-      // Server responded with error status
       const errorMessage = error.response.data?.message || 
                           error.response.data?.errors?.[0]?.msg || 
                           'Signup failed';
@@ -134,13 +127,11 @@ export const signup = async (data: SignupData) => {
         errors: error.response.data?.errors
       };
     } else if (error.request) {
-      // Request made but no response
       return {
         success: false,
         error: 'Unable to connect to server. Please check your internet connection.'
       };
     } else {
-      // Something else happened
       return {
         success: false,
         error: 'An unexpected error occurred. Please try again.'
@@ -167,19 +158,68 @@ export const logout = async (refreshToken?: string) => {
   }
 };
 
-// Get current user
+// Get current user - FIXED VERSION
+// lib/api/authApi.ts
+
+// Get current user - CORRECTED for your backend structure
 export const getCurrentUser = async () => {
   try {
-    const response = await apiClient.get('/users/profile');
-    return {
-      success: true,
-      user: response.data.data
-    };
-  } catch (error) {
-    console.error('Get current user error:', error);
+    console.log('🔄 authApi: Fetching current user from /auth/profile');
+    const response = await apiClient.get('/auth/profile');
+    
+    console.log('📦 authApi: Profile response:', {
+      status: response.status,
+      success: response.data?.success,
+      hasUser: !!response.data?.user
+    });
+    
+    // Your backend returns: { success: true, user: {...} }
+    if (response.data?.success && response.data?.user) {
+      const userData = response.data.user;
+      
+      console.log('✅ authApi: User authenticated:', {
+        id: userData._id || userData.id,
+        email: userData.email,
+        name: userData.name,
+        role: userData.role
+      });
+      
+      return {
+        success: true,
+        user: userData
+      };
+    }
+    
+    console.warn('⚠️ authApi: No user data in response');
     return {
       success: false,
-      error: 'Failed to get user information'
+      error: 'No user data in response'
+    };
+    
+  } catch (error: any) {
+    console.error('❌ authApi: Get current user error:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    
+    // If 401, token is invalid
+    if (error.response?.status === 401) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('authToken');
+        sessionStorage.removeItem('authToken');
+        localStorage.removeItem('refreshToken');
+      }
+      
+      return {
+        success: false,
+        error: 'Unauthorized - please login again'
+      };
+    }
+    
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get user information'
     };
   }
 };
@@ -202,12 +242,17 @@ export const initializeAuth = async () => {
     if (authToken) {
       setAuthToken(authToken);
       const userResponse = await getCurrentUser();
-      if (userResponse.success) {
+      
+      if (userResponse.success && userResponse.user) {
         console.log('✅ authApi: User authenticated with existing token');
         return userResponse.user;
+      } else {
+        console.log('⚠️ authApi: Failed to get user with authToken:', userResponse.error);
       }
-    } else if (refreshToken) {
-      // Try to refresh token
+    }
+    
+    // If authToken failed or doesn't exist, try refresh token
+    if (refreshToken) {
       console.log('🔄 authApi: Attempting token refresh');
       const response = await apiClient.post('/auth/refresh', { refreshToken });
       
@@ -219,14 +264,15 @@ export const initializeAuth = async () => {
         }
         
         const userResponse = await getCurrentUser();
-        if (userResponse.success) {
+        if (userResponse.success && userResponse.user) {
           console.log('✅ authApi: User authenticated with refresh token');
           return userResponse.user;
         }
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ authApi: Auth initialization failed:', error);
+    
     // Clear invalid tokens
     if (typeof window !== 'undefined') {
       localStorage.removeItem('authToken');

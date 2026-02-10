@@ -1,128 +1,92 @@
-// ==========================================
-// MessageInput - Clean, Minimal Chat Input
-// ==========================================
+'use client';
 
-"use client";
-
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef } from 'react';
+import { Send, Loader2 } from 'lucide-react';
 
 interface MessageInputProps {
-  onSendMessage: (content: string) => Promise<void>;
-  sending?: boolean;
+  onSendMessage: (message: string) => void;
+  sending: boolean;
   placeholder?: string;
   initialMessage?: string;
+  onTyping?: () => void;
 }
 
-export const MessageInput: React.FC<MessageInputProps> = ({
+const MessageInput: React.FC<MessageInputProps> = ({
   onSendMessage,
-  sending = false,
-  placeholder = "Message...",
-  initialMessage = "",
+  sending,
+  placeholder = 'Type a message...',
+  initialMessage = '',
+  onTyping,
 }) => {
-  const [message, setMessage] = useState(initialMessage);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [value, setValue] = useState(initialMessage);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-resize textarea height
+  // Update value when initialMessage changes
   useEffect(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = "auto";
-      const newHeight = Math.min(textarea.scrollHeight, 120);
-      textarea.style.height = `${newHeight}px`;
-    }
-  }, [message]);
-
-  // Focus textarea on mount if there's initial message
-  useEffect(() => {
-    if (initialMessage && textareaRef.current) {
-      textareaRef.current.focus();
+    if (initialMessage) {
+      setValue(initialMessage);
+      inputRef.current?.focus();
     }
   }, [initialMessage]);
 
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      setMessage(e.target.value);
-    },
-    []
-  );
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!value.trim() || sending) return;
+    
+    onSendMessage(value.trim());
+    setValue('');
+    inputRef.current?.focus();
+  };
 
-  const handleSend = useCallback(async () => {
-    if (!message.trim() || sending) return;
-
-    try {
-      await onSendMessage(message.trim());
-      setMessage("");
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-      }
-    } catch (error) {
-      console.error("Failed to send message:", error);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValue(e.target.value);
+    
+    // Trigger typing indicator
+    if (onTyping) {
+      onTyping();
     }
-  }, [message, sending, onSendMessage]);
+  };
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
-    },
-    [handleSend]
-  );
-
-  const canSend = message.trim() && !sending;
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
 
   return (
-    <div className="w-full bg-white px-3 py-2 border-t border-gray-100">
-      <div className="flex items-center gap-2">
-        {/* Plus button - circular */}
+    <form onSubmit={handleSubmit} className="p-4">
+      <div className="flex items-center gap-3">
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          disabled={sending}
+          className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-900 placeholder-gray-500"
+        />
         <button
-          type="button"
-          className="flex-shrink-0 w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors cursor-pointer"
-          aria-label="Add attachment"
+          type="submit"
+          disabled={!value.trim() || sending}
+          className="px-6 py-3 bg-yellow-400 hover:bg-yellow-500 disabled:bg-gray-300 disabled:cursor-not-allowed text-gray-900 font-semibold rounded-xl flex items-center gap-2 transition-colors"
         >
-          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
-
-        {/* Text input - modern rectangular with rounded corners */}
-        <div className="flex-1 relative">
-          <textarea
-            ref={textareaRef}
-            value={message}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            rows={1}
-            disabled={sending}
-            className="w-full bg-gray-100 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:bg-gray-50 resize-none min-h-[44px] max-h-[120px] font-normal text-[15px] leading-relaxed"
-            style={{ 
-              height: "auto",
-              overflowY: "auto",
-              display: "block"
-            }}
-          />
-        </div>
-
-        {/* Send button - circular */}
-        <button
-          type="button"
-          onClick={handleSend}
-          disabled={!canSend}
-          className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-            canSend
-              ? "bg-yellow-400 hover:bg-yellow-500"
-              : "bg-gray-200 cursor-not-allowed"
-          }`}
-          aria-label="Send message"
-        >
-          <svg className={`w-5 h-5 ${canSend ? "text-gray-900" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
+          {sending ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span className="hidden sm:inline">Sending...</span>
+            </>
+          ) : (
+            <>
+              <Send className="h-5 w-5" />
+              <span className="hidden sm:inline">Send</span>
+            </>
+          )}
         </button>
       </div>
-    </div>
+    </form>
   );
 };
 

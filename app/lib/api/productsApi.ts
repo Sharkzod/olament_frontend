@@ -1,99 +1,68 @@
-// lib/api/productsApi.ts
+// lib/api/productApi.ts
 import apiClient from './apiClient';
 
-// Get all products
-export const getAllProducts = async (params?: {
-  shopId?: string;
-  category?: string;
-  minPrice?: number;
-  maxPrice?: number;
-  search?: string;
-  page?: number;
-  limit?: number;
-  sortBy?: string;
-  order?: 'asc' | 'desc';
-  featured?: boolean;
-  isAvailable?: boolean;
-  isPublished?: boolean;
-  status?: string;
-  vendor?: string;
-}) => {
-  try {
-    const response = await apiClient.get('/products', { params });
-    console.log('📦 getAllProducts API response:', response.data);
-    return response.data; // Return the full response which contains { success, docs, ... }
-  } catch (error) {
-    console.error('❌ getAllProducts API error:', error);
-    throw error;
-  }
+export const productApi = {
+  // Get all products with optional filters
+  getAllProducts: async (params?: any) => {
+    try {
+      const response = await apiClient.get('/products', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      throw error;
+    }
+  },
+  
+  // Get single product by ID
+  getProductById: async (id: string) => {
+    try {
+      const response = await apiClient.get(`/products/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      throw error;
+    }
+  },
+  
+  // Get products by shop/vendor
+  getProductsByShop: async (shopId: string, params?: any) => {
+    try {
+      const response = await apiClient.get(`/products/shop/${shopId}`, { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching shop products:', error);
+      throw error;
+    }
+  },
+  
+  // Search products
+  searchProducts: async (query: string, params?: any) => {
+    try {
+      const response = await apiClient.get(`/products/search`, { 
+        params: { q: query, ...params } 
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error searching products:', error);
+      throw error;
+    }
+  },
+
+  // Get products by category
+  getProductsByCategory: async (categorySlug: string, params?: any) => {
+    try {
+      const response = await apiClient.get(`/products/categories/${categorySlug}/products`, { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching category products:', error);
+      throw error;
+    }
+  },
 };
 
-// Get product by ID
-export const getProductById = async (productId: string) => {
-  const response = await apiClient.get(`/products/${productId}`);
-  return response.data;
-};
-
-// Get shop products
-export const getShopProducts = async (shopId: string, params?: {
-  category?: string;
-  page?: number;
-  limit?: number;
-}) => {
-  const response = await apiClient.get(`/shops/${shopId}/products`, { params });
-  return response.data;
-};
-
-// Create product
-export const createProduct = async (data: {
-  name: string;
-  description: string;
-  price: number;
-  discountPrice?: number;
-  category: string;
-  subcategory?: string;
-  images: string[];
-  inventory: {
-    sku: string;
-    quantity: number;
-    lowStockThreshold: number;
-  };
-  specifications?: Record<string, any>;
-  tags?: string[];
-}) => {
-  const response = await apiClient.post('/products', data);
-  return response.data;
-};
-
-// Update product
-export const updateProduct = async (productId: string, data: {
-  name?: string;
-  description?: string;
-  price?: number;
-  discountPrice?: number;
-  category?: string;
-  subcategory?: string;
-  images?: string[];
-  inventory?: {
-    sku?: string;
-    quantity?: number;
-    lowStockThreshold?: number;
-  };
-  specifications?: Record<string, any>;
-  tags?: string[];
-}) => {
-  const response = await apiClient.put(`/products/${productId}`, data);
-  return response.data;
-};
-
-// Delete product
-export const deleteProduct = async (productId: string) => {
-  const response = await apiClient.delete(`/products/${productId}`);
-  return response.data;
-};
-
-// Upload product images
-export const uploadProductImages = async (productId: string, images: string[]) => {
-  const response = await apiClient.post(`/products/${productId}/images`, { images });
-  return response.data;
-};
+// Also export individual functions for backwards compatibility
+export const getAllProducts = productApi.getAllProducts;
+export const getProductById = productApi.getProductById;
+export const getProductsByShop = productApi.getProductsByShop;
+export const searchProducts = productApi.searchProducts;
+export const getProductsByCategory = productApi.getProductsByCategory;

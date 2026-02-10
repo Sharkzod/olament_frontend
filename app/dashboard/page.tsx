@@ -22,10 +22,10 @@ const products = [
   { id: 4, name: 'Organic Bananas', price: '800', unit: 'per bunch', shop: 'Fresh Grocery', rating: 4.6, image: 'https://images.unsplash.com/photo-1603833665858-e61d17a86224?w-800&q=80' },
 ];
 
-// Fallback states in case API fails
+// Fallback states with proper names
 const FALLBACK_STATES = [
-  "Lagos", "Abuja", "Rivers", "Oyo", "Kano", "Kaduna", 
-  "Edo", "Delta", "Ogun", "Ondo", "Enugu", "Plateau"
+  "Lagos State", "Abuja", "Rivers State", "Oyo State", "Kano State", "Kaduna State", 
+  "Edo State", "Delta State", "Ogun State", "Ondo State", "Enugu State", "Plateau State"
 ];
 
 export default function App() {
@@ -33,7 +33,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showPromo, setShowPromo] = useState(true);
   
-  // Use the markets hook
+  // Use the markets hook - start with Rivers State to match your data
   const {
     markets,
     states: apiStates,
@@ -46,7 +46,7 @@ export default function App() {
     refreshMarkets,
     getMarketsByState,
     getAvailableStates,
-  } = useMarkets("Lagos");
+  } = useMarkets("Rivers State"); // Changed to match your data exactly
 
   const {
     shops: apiShops,
@@ -71,23 +71,82 @@ export default function App() {
       isAvailable: true,
       isPublished: true,
     },
-    autoFetch: false, // We'll fetch manually when tab is active
+    autoFetch: false,
   });
 
   // Use fallback if API states are empty
   const states = apiStates.length > 0 ? apiStates : FALLBACK_STATES;
   
-  const [sortedMarkets, setSortedMarkets] = useState(markets);
+  // Get unique cities from markets in selected state
+  const citiesInState = useMemo(() => {
+    const cities = new Set<string>();
+    
+    // Add "all" as first option
+    cities.add('all');
+    
+    // Extract cities from markets in the selected state
+    markets
+      .filter(market => {
+        // Normalize state names for comparison
+        const marketState = (market.state || '').trim();
+        const selectedStateNormalized = (selectedState || '').trim();
+        
+        // Handle state name variations (with or without "State")
+        return marketState === selectedStateNormalized || 
+               (marketState.includes(selectedStateNormalized) && 
+                selectedStateNormalized.includes(marketState.split(' ')[0]));
+      })
+      .forEach(market => {
+        if (market.city && market.city.trim() !== '' && market.city.toLowerCase() !== 'nill') {
+          cities.add(market.city);
+        }
+      });
+    
+    return Array.from(cities);
+  }, [markets, selectedState]);
+  
+  // Filter markets based on selected state and city
+  const filteredMarkets = useMemo(() => {
+    // First filter by state (with normalization)
+    let result = markets.filter(market => {
+      const marketState = (market.state || '').trim();
+      const selectedStateNormalized = (selectedState || '').trim();
+      
+      // Handle state name variations
+      return marketState === selectedStateNormalized || 
+             (marketState.includes(selectedStateNormalized) && 
+              selectedStateNormalized.includes(marketState.split(' ')[0]));
+    });
+    
+    // Further filter by city if selected
+    if (selectedCity && selectedCity !== 'all') {
+      result = result.filter(market => market.city === selectedCity);
+    }
+    
+    // Apply search filter if any
+    if (searchQuery) {
+      result = result.filter(market => 
+        market.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (market.city && market.city.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (market.description && market.description.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+    }
+    
+    return result;
+  }, [markets, selectedState, selectedCity, searchQuery]);
+
+  const [sortedMarkets, setSortedMarkets] = useState(filteredMarkets);
+  
   const [filteredShops, setFilteredShops] = useState(shops);
   const [filteredProducts, setFilteredProducts] = useState(products);
   
-  // MOVED FROM renderShopsTab: Shops state at top level
-  const [shopsFiltered, setShopsFiltered] = useState<ShopProfile[]>([]);
+  // Shops state at top level
+  const [shopsFiltered, setShopsFiltered] = useState<any[]>([]);
   const [shopsLoadingLocal, setShopsLoadingLocal] = useState(false);
   const [shopsErrorLocal, setShopsErrorLocal] = useState<string | null>(null);
 
   // Products state at top level
-  const [productsFiltered, setProductsFiltered] = useState<Product[]>([]);
+  const [productsFiltered, setProductsFiltered] = useState<any[]>([]);
   const [productsLoadingLocal, setProductsLoadingLocal] = useState(false);
   const [productsErrorLocal, setProductsErrorLocal] = useState<string | null>(null);
   
@@ -100,13 +159,19 @@ export default function App() {
   useEffect(() => {
     console.log('🔍 Component State:', {
       states,
-      statesLength: states.length,
       selectedState,
       marketsCount: markets.length,
+      filteredMarketsCount: filteredMarkets.length,
+      citiesInState,
       loading,
       error
     });
-  }, [states, selectedState, markets, loading, error]);
+  }, [states, selectedState, markets, filteredMarkets, loading, error]);
+
+  // Update sortedMarkets when filteredMarkets changes
+  useEffect(() => {
+    setSortedMarkets(filteredMarkets);
+  }, [filteredMarkets]);
 
   // Manual function to fetch states
   const handleFetchStates = async () => {
@@ -130,7 +195,17 @@ export default function App() {
     }
   };
 
-  // MOVED FROM renderShopsTab: Fetch shops callbacks at top level
+  // Handle state change
+  const handleStateChange = (newState: string) => {
+    console.log('🔄 State changed from', selectedState, 'to', newState);
+    setSelectedState(newState);
+    setSelectedCity('all');
+    
+    // Fetch markets for the new state
+    handleFetchMarkets(newState);
+  };
+
+  // Fetch shops callbacks at top level
   const fetchShopsByState = useCallback(async () => {
     if (!selectedState || selectedState === '') return;
     
@@ -173,7 +248,7 @@ export default function App() {
     }
   }, [selectedState, selectedCity]);
 
-  // MOVED FROM renderShopsTab: Effect to fetch shops when state/city changes
+  // Effect to fetch shops when state/city changes
   useEffect(() => {
     if (tab === 'shops' && selectedState) {
       fetchShopsByState();
@@ -226,9 +301,8 @@ export default function App() {
       // Reset the ref when leaving products tab
       productsFetchedRef.current = false;
     }
-  }, [tab]); // Only depend on tab change
+  }, [tab]);
 
-  // REMOVED: Conflicting effect that was causing infinite loop
   // Update productsFiltered when apiProducts changes from the hook
   useEffect(() => {
     if (apiProducts.length > 0) {
@@ -236,7 +310,7 @@ export default function App() {
     }
   }, [apiProducts]);
 
-  // MOVED FROM renderShopsTab: Memoized search filtering
+  // Memoized search filtering for shops
   const searchFilteredShops = useMemo(() => {
     if (!searchQuery) return shopsFiltered;
     
@@ -290,22 +364,12 @@ export default function App() {
   }
 
   const handleViewAllProductsClick = () => {
-  console.log('📦 Navigating to all products');
-  router.push(`/products`);
-};
+    console.log('📦 Navigating to all products');
+    router.push(`/products`);
+  };
 
-
-  // Filter markets based on search query
+  // Filter static data based on search query
   useEffect(() => {
-    const marketsResults = searchQuery
-      ? markets.filter(m => 
-          m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (m.city && m.city.toLowerCase().includes(searchQuery.toLowerCase()))
-        )
-      : markets;
-    
-    setSortedMarkets(marketsResults);
-
     // Filter shops (kept as static for now)
     const shopsResults = searchQuery
       ? shops.filter(s => 
@@ -325,153 +389,173 @@ export default function App() {
       : products;
     
     setFilteredProducts(productsResults);
-  }, [searchQuery, markets]);
+  }, [searchQuery]);
 
   const renderMarketsTab = () => {
-  console.log('🔄 renderMarketsTab called:', { 
-    marketsCount: sortedMarkets.length, 
-    loading, 
-    error,
-    selectedState 
-  });
+    console.log('🔄 renderMarketsTab called:', { 
+      marketsCount: sortedMarkets.length, 
+      loading, 
+      error,
+      selectedState,
+      selectedCity
+    });
 
-  if (loading && sortedMarkets.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-3" />
-        <p className="text-gray-600">Loading markets in {selectedState}...</p>
-      </div>
-    );
-  }
-
-  if (error && sortedMarkets.length === 0) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 my-4">
-        <p className="text-red-700 font-medium">Error loading markets</p>
-        <p className="text-red-600 text-sm mt-1">{error}</p>
-        <div className="flex gap-2 mt-3">
-          <button
-            onClick={refreshMarkets}
-            className="px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors"
-          >
-            Retry
-          </button>
-          <button
-            onClick={() => handleFetchMarkets(selectedState)}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
-          >
-            Debug Fetch
-          </button>
+    if (loading && sortedMarkets.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-3" />
+          <p className="text-gray-600">Loading markets in {selectedState}...</p>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (sortedMarkets.length === 0 && !loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <Store className="h-12 w-12 text-gray-300 mb-3" />
-        <p className="text-gray-600 font-medium">No markets found in {selectedState}</p>
-        <p className="text-gray-500 text-sm mt-1">Try selecting a different state or check back later</p>
-        <button
-          onClick={() => handleFetchMarkets(selectedState)}
-          className="mt-4 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
-        >
-          Try Again
-        </button>
-      </div>
-    );
-  }
+    // if (error) {
+    //   return (
+    //     <div className="bg-red-50 border border-red-200 rounded-lg p-4 my-4">
+    //       <p className="text-red-700 font-medium">Error loading markets</p>
+    //       <p className="text-red-600 text-sm mt-1">{error}</p>
+    //       <div className="flex gap-2 mt-3">
+    //         <button
+    //           onClick={refreshMarkets}
+    //           className="px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors"
+    //         >
+    //           Retry
+    //         </button>
+    //         <button
+    //           onClick={() => handleFetchMarkets(selectedState)}
+    //           className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+    //         >
+    //           Debug Fetch
+    //         </button>
+    //       </div>
+    //     </div>
+    //   );
+    // }
 
-  console.log('🎯 Rendering markets:', sortedMarkets);
-
-  // Function to handle market click
-  const handleMarketClick = (marketId: string, marketName: string) => {
-    console.log('🛍️ Navigating to shops in market:', marketId, marketName);
-    // Navigate to shop list page with market ID as query parameter
-    router.push(`/shops?market=${marketId}&marketName=${encodeURIComponent(marketName)}`);
-  };
-
-  // Function to handle "View all" click
-  const handleViewAllMarketsClick = () => {
-    console.log('📋 Navigating to all markets shops');
-    router.push(`/shops?state=${selectedState}&city=${selectedCity || 'all'}`);
-  };
-
-  return (
-    <section className="mt-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-black">
-          Markets in {selectedState}
-          {selectedCity && selectedCity.toLowerCase() !== 'all' && `, ${selectedCity}`}
-          <span className="text-sm font-normal text-gray-600 ml-2">
-            ({sortedMarkets.length} {sortedMarkets.length === 1 ? 'market' : 'markets'})
-          </span>
-        </h2>
-        <button 
-          className="text-sm font-semibold text-gray-600 flex items-center gap-1 hover:text-gray-900 cursor-pointer"
-          onClick={handleViewAllMarketsClick}
-        >
-          View all <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
-
-      <div className="space-y-4">
-        {sortedMarkets.map((market) => (
-          <article 
-            key={market._id} 
-            className="rounded-2xl cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => handleMarketClick(market._id, market.name)}
+    if (sortedMarkets.length === 0 && !loading) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12">
+          <Store className="h-12 w-12 text-gray-300 mb-3" />
+          <p className="text-gray-600 font-medium">No markets found in {selectedState}</p>
+          <p className="text-gray-500 text-sm mt-1">Try selecting a different state or check back later</p>
+          {/* <button
+            onClick={() => handleFetchMarkets(selectedState)}
+            className="mt-4 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
           >
-            <div className='bg-white rounded-xl min-h-[35vh] w-full border border-gray-200 hover:border-gray-300'>
-              <div className="relative pt-[20px]">
-                <div className="rounded-2xl overflow-hidden bg-gray-200 w-[90%] flex justify-center items-center m-auto h-48">
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
-                    <Store className="h-16 w-16 text-gray-400" />
-                  </div>
-                </div>
-              </div>
-              <div className="p-4">
-                <div className="flex justify-between items-start">
-                  <div className='flex w-full justify-between'>
-                    <h3 className="font-bold text-lg text-gray-900">{market.name}</h3>
-                    <div className="flex items-center mt-1 text-gray-600">
-                      <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
-                      <span className="text-sm">
-                        {market.city && market.city !== 'Nill' ? market.city : selectedState}
-                      </span>
+            Try Again
+          </button> */}
+        </div>
+      );
+    }
+
+    console.log('🎯 Rendering markets:', sortedMarkets);
+
+    // Function to handle market click
+    const handleMarketClick = (marketId: string, marketName: string) => {
+      console.log('🛍️ Navigating to shops in market:', marketId, marketName);
+      router.push(`/shops?market=${marketId}&marketName=${encodeURIComponent(marketName)}`);
+    };
+
+    // Function to handle "View all" click
+    const handleViewAllMarketsClick = () => {
+      console.log('📋 Navigating to all markets shops');
+      router.push(`/shops?state=${selectedState}&city=${selectedCity || 'all'}`);
+    };
+
+    return (
+      <section className="mt-6 mb-6">
+        {/* City Selection Dropdown */}
+        <div className="mb-4 flex items-center justify-between">
+          <div className='flex justify-between w-full'>
+            <h2 className="text-lg font-bold text-black">
+              Markets in {selectedState}
+              {selectedCity && selectedCity.toLowerCase() !== 'all' && `, ${selectedCity}`}
+              <span className="text-sm font-normal text-gray-600 ml-2">
+                {/* ({sortedMarkets.length} {sortedMarkets.length === 1 ? 'market' : 'markets'}) */}
+              </span>
+            </h2>
+            <div className="flex items-center">
+              <MapPin className="h-4 w-4 text-gray-500 mr-2" />
+              <select 
+                className="appearance-none bg-transparent border-none font-medium text-gray-800 cursor-pointer focus:outline-none focus:ring-0 text-sm"
+                value={selectedCity}
+                onChange={(e) => {
+                  const newCity = e.target.value;
+                  console.log('🏙️ City changed from', selectedCity, 'to', newCity);
+                  setSelectedCity(newCity);
+                }}
+              >
+                {citiesInState.map((city) => (
+                  <option key={city} value={city}>
+                    {city === 'all' ? 'All Cities' : city}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {/* <button 
+            className="text-sm font-semibold text-gray-600 flex items-center gap-1 hover:text-gray-900 cursor-pointer"
+            onClick={handleViewAllMarketsClick}
+          >
+            View all <ChevronRight className="h-4 w-4" />
+          </button> */}
+        </div>
+
+        <div className="space-y-4">
+          {sortedMarkets.map((market) => (
+            <article 
+              key={market._id} 
+              className="rounded-2xl cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => handleMarketClick(market._id, market.name)}
+            >
+              <div className='bg-white rounded-xl min-h-[35vh] w-full border border-gray-200 hover:border-gray-300'>
+                <div className="relative pt-[20px]">
+                  <div className="rounded-2xl overflow-hidden bg-gray-200 w-[90%] flex justify-center items-center m-auto h-48">
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
+                      <Store className="h-16 w-16 text-gray-400" />
                     </div>
                   </div>
                 </div>
-                {market.description && (
-                  <p className="text-gray-600 text-sm mt-2 line-clamp-2">{market.description}</p>
-                )}
-                <div className="mt-3 flex justify-between items-center">
-                  <div className="text-xs text-gray-500">
-                    {market.vendorIds?.length || 0} vendors • {market.productIds?.length || 0} products
+                <div className="p-4">
+                  <div className="flex justify-between items-start">
+                    <div className='flex w-full justify-between'>
+                      <h3 className="font-bold text-lg text-gray-900">{market.name}</h3>
+                      <div className="flex items-center mt-1 text-gray-600">
+                        <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
+                        <span className="text-sm">
+                          {market.city && market.city !== 'Nill' ? market.city : selectedState}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {market.address ? `${market.address.substring(0, 20)}...` : 'No address'}
-                  </div>
+                  {market.description && (
+                    <p className="text-gray-600 text-sm mt-2 line-clamp-2">{market.description}</p>
+                  )}
+                  {/* <div className="mt-3 flex justify-between items-center">
+                    <div className="text-xs text-gray-500">
+                      {market.vendorIds?.length || 0} vendors • {market.productIds?.length || 0} products
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {market.address ? `${market.address.substring(0, 20)}...` : 'No address'}
+                    </div>
+                  </div> */}
+                  <button 
+                    className="mt-4 w-full bg-gray-900 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMarketClick(market._id, market.name);
+                    }}
+                  >
+                    Explore Market Shops
+                  </button>
                 </div>
-                <button 
-                  className="mt-4 w-full bg-gray-900 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevent double navigation
-                    handleMarketClick(market._id, market.name);
-                  }}
-                >
-                  Explore Market Shops
-                </button>
               </div>
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-};
-
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  };
 
   // SIMPLIFIED: renderShopsTab now uses state from top level
   const renderShopsTab = () => {
@@ -532,9 +616,9 @@ export default function App() {
               {searchQuery && ` matching "${searchQuery}"`}
             </span>
           </h2>
-          <button className="text-sm font-semibold text-gray-600 flex items-center gap-1 cursor-pointer">
+          {/* <button className="text-sm font-semibold text-gray-600 flex items-center gap-1 cursor-pointer">
             View all <ChevronRight className="h-4 w-4" />
-          </button>
+          </button> */}
         </div>
 
         <div className="space-y-4">
@@ -666,212 +750,212 @@ export default function App() {
     );
   };
 
-  const renderProductsTab = () => {
-    const isLoading = productsLoadingLocal || productsLoading;
-    const errorToShow = productsErrorLocal || (productsError ? productsError.message : null);
+  // const renderProductsTab = () => {
+  //   const isLoading = productsLoadingLocal || productsLoading;
+  //   const errorToShow = productsErrorLocal || (productsError ? productsError.message : null);
 
-    if (isLoading && searchFilteredProducts.length === 0) {
-      return (
-        <div className="flex flex-col items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-3" />
-          <p className="text-gray-600">Loading products...</p>
-        </div>
-      );
-    }
+  //   if (isLoading && searchFilteredProducts.length === 0) {
+  //     return (
+  //       <div className="flex flex-col items-center justify-center py-12">
+  //         <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-3" />
+  //         <p className="text-gray-600">Loading products...</p>
+  //       </div>
+  //     );
+  //   }
 
-    if (errorToShow && searchFilteredProducts.length === 0) {
-      return (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 my-4">
-          <p className="text-red-700 font-medium">Error loading products</p>
-          <p className="text-red-600 text-sm mt-1">{errorToShow}</p>
-          <button
-            onClick={fetchProductsByFilters}
-            className="mt-3 px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      );
-    }
+  //   if (errorToShow && searchFilteredProducts.length === 0) {
+  //     return (
+  //       <div className="bg-red-50 border border-red-200 rounded-lg p-4 my-4">
+  //         <p className="text-red-700 font-medium">Error loading products</p>
+  //         <p className="text-red-600 text-sm mt-1">{errorToShow}</p>
+  //         <button
+  //           onClick={fetchProductsByFilters}
+  //           className="mt-3 px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors"
+  //         >
+  //           Retry
+  //         </button>
+  //       </div>
+  //     );
+  //   }
 
-    if (searchFilteredProducts.length === 0 && !isLoading) {
-      return (
-        <div className="flex flex-col items-center justify-center py-12">
-          <Package className="h-12 w-12 text-gray-300 mb-3" />
-          <p className="text-gray-600 font-medium">No products found</p>
-          <p className="text-gray-500 text-sm mt-1">
-            Check back later or try a different search
-          </p>
-          {searchQuery && (
-            <p className="text-gray-500 text-sm mt-2">
-              No results for "{searchQuery}"
-            </p>
-          )}
-        </div>
-      );
-    }
+  //   if (searchFilteredProducts.length === 0 && !isLoading) {
+  //     return (
+  //       <div className="flex flex-col items-center justify-center py-12">
+  //         <Package className="h-12 w-12 text-gray-300 mb-3" />
+  //         <p className="text-gray-600 font-medium">No products found</p>
+  //         <p className="text-gray-500 text-sm mt-1">
+  //           Check back later or try a different search
+  //         </p>
+  //         {searchQuery && (
+  //           <p className="text-gray-500 text-sm mt-2">
+  //             No results for "{searchQuery}"
+  //           </p>
+  //         )}
+  //       </div>
+  //     );
+  //   }
 
-    return (
-      <section className="mt-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-black">
-            {searchQuery ? 'Search Results' : 'Popular Products'}
-            <span className="text-sm font-normal text-gray-600 ml-2">
-              ({searchFilteredProducts.length} {searchFilteredProducts.length === 1 ? 'product' : 'products'})
-              {searchQuery && ` matching "${searchQuery}"`}
-            </span>
-          </h2>
-          <button className="text-sm font-semibold text-gray-600 flex items-center gap-1 cursor-pointer">
-            View all <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
+  //   return (
+  //     <section className="mt-6">
+  //       <div className="mb-4 flex items-center justify-between">
+  //         <h2 className="text-lg font-bold text-black">
+  //           {searchQuery ? 'Search Results' : 'Popular Products'}
+  //           <span className="text-sm font-normal text-gray-600 ml-2">
+  //             ({searchFilteredProducts.length} {searchFilteredProducts.length === 1 ? 'product' : 'products'})
+  //             {searchQuery && ` matching "${searchQuery}"`}
+  //           </span>
+  //         </h2>
+  //         <button className="text-sm font-semibold text-gray-600 flex items-center gap-1 cursor-pointer">
+  //           View all <ChevronRight className="h-4 w-4" />
+  //         </button>
+  //       </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          {searchFilteredProducts.map(product => {
-            // Calculate discount percentage
-            const hasDiscount = product.discountPrice && product.discountPrice < product.price;
-            const discountPercent = hasDiscount 
-              ? Math.round(((product.price - (product.discountPrice || 0)) / product.price) * 100)
-              : 0;
+  //       <div className="grid grid-cols-2 gap-4">
+  //         {searchFilteredProducts.map(product => {
+  //           // Calculate discount percentage
+  //           const hasDiscount = product.discountPrice && product.discountPrice < product.price;
+  //           const discountPercent = hasDiscount 
+  //             ? Math.round(((product.price - (product.discountPrice || 0)) / product.price) * 100)
+  //             : 0;
             
-            // Get display price
-            const displayPrice = hasDiscount ? product.discountPrice : product.price;
+  //           // Get display price
+  //           const displayPrice = hasDiscount ? product.discountPrice : product.price;
             
-            // Check stock status
-            const isOutOfStock = product.inventory?.quantity === 0;
-            const isLowStock = product.inventory?.quantity 
-              ? product.inventory.quantity <= (product.inventory.lowStockThreshold || 5)
-              : false;
+  //           // Check stock status
+  //           const isOutOfStock = product.inventory?.quantity === 0;
+  //           const isLowStock = product.inventory?.quantity 
+  //             ? product.inventory.quantity <= (product.inventory.lowStockThreshold || 5)
+  //             : false;
 
-            return (
-              <article 
-                key={product._id} 
-                className="bg-white rounded-xl border border-gray-200 overflow-hidden relative"
-              >
-                {/* Discount badge */}
-                {hasDiscount && (
-                  <div className="absolute top-2 left-2 z-10 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-                    -{discountPercent}%
-                  </div>
-                )}
+  //           return (
+  //             <article 
+  //               key={product._id} 
+  //               className="bg-white rounded-xl border border-gray-200 overflow-hidden relative"
+  //             >
+  //               {/* Discount badge */}
+  //               {hasDiscount && (
+  //                 <div className="absolute top-2 left-2 z-10 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+  //                   -{discountPercent}%
+  //                 </div>
+  //               )}
                 
-                {/* Out of stock overlay */}
-                {isOutOfStock && (
-                  <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center">
-                    <span className="bg-red-500 text-white text-sm font-bold px-4 py-2 rounded">
-                      OUT OF STOCK
-                    </span>
-                  </div>
-                )}
+  //               {/* Out of stock overlay */}
+  //               {isOutOfStock && (
+  //                 <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center">
+  //                   <span className="bg-red-500 text-white text-sm font-bold px-4 py-2 rounded">
+  //                     OUT OF STOCK
+  //                   </span>
+  //                 </div>
+  //               )}
                 
-                <div className="relative">
-                  <div className="h-40 bg-gray-200">
-                    {product.images && product.images.length > 0 ? (
-                      <img 
-                        src={product.images[0]} 
-                        alt={product.name} 
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-                        <Package className="h-12 w-12 text-gray-300" />
-                      </div>
-                    )}
-                  </div>
-                  <button className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors bg-white rounded-full p-1.5 shadow-md cursor-pointer">
-                    <Heart className="h-4 w-4" />
-                  </button>
-                </div>
+  //               <div className="relative">
+  //                 <div className="h-40 bg-gray-200">
+  //                   {product.images && product.images.length > 0 ? (
+  //                     <img 
+  //                       src={product.images[0]} 
+  //                       alt={product.name} 
+  //                       className="w-full h-full object-cover"
+  //                     />
+  //                   ) : (
+  //                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+  //                       <Package className="h-12 w-12 text-gray-300" />
+  //                     </div>
+  //                   )}
+  //                 </div>
+  //                 <button className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors bg-white rounded-full p-1.5 shadow-md cursor-pointer">
+  //                   <Heart className="h-4 w-4" />
+  //                 </button>
+  //               </div>
                 
-                <div className="p-3">
-                  {/* Category badge */}
-                  {product.category && (
-                    <div className="flex items-center gap-1 mb-1">
-                      <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                        {product.category}
-                      </span>
-                      {isLowStock && !isOutOfStock && (
-                        <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
-                          Low Stock
-                        </span>
-                      )}
-                    </div>
-                  )}
+  //               <div className="p-3">
+  //                 {/* Category badge */}
+  //                 {product.category && (
+  //                   <div className="flex items-center gap-1 mb-1">
+  //                     <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+  //                       {product.category}
+  //                     </span>
+  //                     {isLowStock && !isOutOfStock && (
+  //                       <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
+  //                         Low Stock
+  //                       </span>
+  //                     )}
+  //                   </div>
+  //                 )}
                   
-                  <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 min-h-[2.5rem]">
-                    {product.name}
-                  </h3>
+  //                 <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 min-h-[2.5rem]">
+  //                   {product.name}
+  //                 </h3>
                   
-                  {/* Shop/Vendor info */}
-                  {product.vendor && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      {typeof product.vendor === 'string' 
-                        ? product.vendor 
-                        : product.vendor.vendorProfile?.businessName || product.vendor.name}
-                    </p>
-                  )}
+  //                 {/* Shop/Vendor info */}
+  //                 {product.vendor && (
+  //                   <p className="text-xs text-gray-500 mt-1">
+  //                     {typeof product.vendor === 'string' 
+  //                       ? product.vendor 
+  //                       : product.vendor.vendorProfile?.businessName || product.vendor.name}
+  //                   </p>
+  //                 )}
                   
-                  {/* Rating if available */}
-                  {product.rating && product.rating > 0 && (
-                    <div className="flex items-center gap-1 mt-1">
-                      <Star className="h-3 w-3 text-yellow-400 fill-current" />
-                      <span className="text-xs font-semibold">{product.rating.toFixed(1)}</span>
-                      {product.reviewCount && (
-                        <span className="text-xs text-gray-500">({product.reviewCount})</span>
-                      )}
-                    </div>
-                  )}
+  //                 {/* Rating if available */}
+  //                 {product.rating && product.rating > 0 && (
+  //                   <div className="flex items-center gap-1 mt-1">
+  //                     <Star className="h-3 w-3 text-yellow-400 fill-current" />
+  //                     <span className="text-xs font-semibold">{product.rating.toFixed(1)}</span>
+  //                     {product.reviewCount && (
+  //                       <span className="text-xs text-gray-500">({product.reviewCount})</span>
+  //                     )}
+  //                   </div>
+  //                 )}
                   
-                  <div className="flex items-center justify-between mt-3">
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-gray-900">
-                          ₦{displayPrice?.toLocaleString() || '0'}
-                        </span>
-                        {hasDiscount && (
-                          <span className="text-xs text-gray-400 line-through">
-                            ₦{product.price.toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-                      {product.unit && (
-                        <span className="text-xs text-gray-500">{product.unit}</span>
-                      )}
-                    </div>
+  //                 <div className="flex items-center justify-between mt-3">
+  //                   <div className="flex flex-col">
+  //                     <div className="flex items-center gap-2">
+  //                       <span className="font-bold text-gray-900">
+  //                         ₦{displayPrice?.toLocaleString() || '0'}
+  //                       </span>
+  //                       {hasDiscount && (
+  //                         <span className="text-xs text-gray-400 line-through">
+  //                           ₦{product.price.toLocaleString()}
+  //                         </span>
+  //                       )}
+  //                     </div>
+  //                     {product.unit && (
+  //                       <span className="text-xs text-gray-500">{product.unit}</span>
+  //                     )}
+  //                   </div>
                     
-                    <button 
-                      className={`text-xs font-semibold px-3 py-2 rounded-lg transition-colors flex items-center gap-1 ${
-                        isOutOfStock 
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                          : 'bg-gray-900 text-white hover:bg-gray-800 cursor-pointer'
-                      }`}
-                      disabled={isOutOfStock}
-                      onClick={() => {
-                        if (!isOutOfStock) {
-                          // Add to cart logic
-                          console.log('Add to cart:', product._id);
-                        }
-                      }}
-                    >
-                      <ShoppingBag className="h-3 w-3" />
-                      {isOutOfStock ? 'Sold Out' : 'Add'}
-                    </button>
-                  </div>
+  //                   <button 
+  //                     className={`text-xs font-semibold px-3 py-2 rounded-lg transition-colors flex items-center gap-1 ${
+  //                       isOutOfStock 
+  //                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+  //                         : 'bg-gray-900 text-white hover:bg-gray-800 cursor-pointer'
+  //                     }`}
+  //                     disabled={isOutOfStock}
+  //                     onClick={() => {
+  //                       if (!isOutOfStock) {
+  //                         // Add to cart logic
+  //                         console.log('Add to cart:', product._id);
+  //                       }
+  //                     }}
+  //                   >
+  //                     <ShoppingBag className="h-3 w-3" />
+  //                     {isOutOfStock ? 'Sold Out' : 'Add'}
+  //                   </button>
+  //                 </div>
                   
-                  {/* Stock indicator */}
-                  {!isOutOfStock && product.inventory?.quantity && (
-                    <div className="mt-2 text-xs text-gray-500">
-                      {product.inventory.quantity} in stock
-                    </div>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-    );
-  };
+  //                 {/* Stock indicator */}
+  //                 {!isOutOfStock && product.inventory?.quantity && (
+  //                   <div className="mt-2 text-xs text-gray-500">
+  //                     {product.inventory.quantity} in stock
+  //                   </div>
+  //                 )}
+  //               </div>
+  //             </article>
+  //           );
+  //         })}
+  //       </div>
+  //     </section>
+  //   );
+  // };
 
   const renderTabContent = () => {
     switch(tab) {
@@ -879,15 +963,15 @@ export default function App() {
         return renderMarketsTab();
       case 'shops':
         return renderShopsTab();
-      case 'products':
-        return renderProductsTab();
+      // case 'products':
+      //   return renderProductsTab();
       default:
         return renderMarketsTab();
     }
   };
 
   return (
-    <div className="min-h-screen bg-white">
+     <div className="min-h-screen bg-white">
       <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
         <div className="flex items-center justify-between px-4 py-3 w-full">
           <div className="flex items-center gap-3">
@@ -911,13 +995,7 @@ export default function App() {
               <select 
                 className="appearance-none bg-transparent border-none font-medium text-gray-800 cursor-pointer focus:outline-none focus:ring-0 min-w-[40px]"
                 value={selectedState}
-                onChange={(e) => {
-                  const newState = e.target.value;
-                  console.log('🔄 State changed from', selectedState, 'to', newState);
-                  setSelectedState(newState);
-                  setSelectedCity('all');
-                  handleFetchMarkets(newState);
-                }}
+                onChange={(e) => handleStateChange(e.target.value)}
               >
                 {states.length === 0 ? (
                   <option value="">No states</option>
@@ -947,7 +1025,7 @@ export default function App() {
         <div className="">
           <div className="flex bg-gray-100">
             <div className='h-11 w-full flex items-center justify-center'>
-              {['products', 'shops', 'markets'].map(t => (
+              {['shops', 'markets'].map(t => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
@@ -982,14 +1060,6 @@ export default function App() {
                 <div className="text-sm text-gray-800">Local markets brought to your door</div>
               </div>
             </div>
-            {/* X Button to dismiss - Yellow background, black X, square border */}
-            <button
-              onClick={() => setShowPromo(false)}
-              className="absolute top-2 right-2 w-8 h-8 bg-yellow-400 border-2 border-black rounded-lg flex items-center justify-center cursor-pointer hover:bg-yellow-500 transition-colors flex-shrink-0"
-              aria-label="Dismiss banner"
-            >
-              <X className="h-5 w-5 text-black" />
-            </button>
           </div>
         )}
 

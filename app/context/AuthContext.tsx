@@ -55,11 +55,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
-        const storedToken = localStorage.getItem('token');
-        console.log('🔐 AuthProvider: Token in localStorage?', !!storedToken);
+        // 🔥 FIX: Check ALL possible token keys
+        const storedToken = localStorage.getItem('authToken') ||
+                            localStorage.getItem('accessToken') ||
+                            localStorage.getItem('token');
+        
+        console.log('🔐 AuthProvider: Tokens in localStorage?', {
+          authToken: !!localStorage.getItem('authToken'),
+          accessToken: !!localStorage.getItem('accessToken'),
+          token: !!localStorage.getItem('token'),
+          refreshToken: !!localStorage.getItem('refreshToken'),
+          foundToken: !!storedToken
+        });
         
         if (storedToken && storedToken !== 'undefined' && storedToken !== 'null') {
-          console.log('🔐 AuthProvider: Found token, setting it...');
+          console.log('🔐 AuthProvider: Found token, length:', storedToken.length);
           setToken(storedToken);
           await fetchUserProfile(storedToken);
         } else {
@@ -70,8 +80,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       } catch (error) {
         console.error('🔐 AuthProvider: Initialization error:', error);
-        // Clear invalid token
+        // Clear all possible token locations
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('accessToken');
         localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
         setIsAuthenticated(false);
         setToken(null);
         setUser(null);
@@ -164,8 +177,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(mockUser);
         setIsAuthenticated(true);
       } else {
-        // Clear invalid token
+        // Clear all possible token locations
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('accessToken');
         localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
         setToken(null);
         setUser(null);
         setIsAuthenticated(false);
@@ -182,7 +198,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = (newToken: string, userData?: User) => {
     console.log('🔐 AuthProvider: Login called with token');
+    
+    // 🔥 FIX: Store token in all possible keys for compatibility
+    localStorage.setItem('authToken', newToken);
+    localStorage.setItem('accessToken', newToken);
     localStorage.setItem('token', newToken);
+    
     setToken(newToken);
     
     if (userData) {
@@ -197,7 +218,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     console.log('🔐 AuthProvider: Logging out...');
+    // Clear all possible token locations
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('accessToken');
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     setToken(null);
     setUser(null);
     setIsAuthenticated(false);

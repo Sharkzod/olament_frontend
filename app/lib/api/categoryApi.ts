@@ -3,13 +3,13 @@ import apiClient from './apiClient';
 
 // Get all categories
 export const getAllCategories = async () => {
-  const response = await apiClient.get('/categories');
+  const response = await apiClient.get('/products/categories/list');
   return response.data;
 };
 
 // Get category by ID
 export const getCategoryById = async (categoryId: string) => {
-  const response = await apiClient.get(`/categories/${categoryId}`);
+  const response = await apiClient.get(`/products/categories/${categoryId}`);
   return response.data;
 };
 
@@ -20,6 +20,6 @@ export const getCategoryProducts = async (categoryId: string, params?: {
   sortBy?: string;
   order?: 'asc' | 'desc';
 }) => {
-  const response = await apiClient.get(`/categories/${categoryId}/products`, { params });
+  const response = await apiClient.get(`/products/categories/${categoryId}/products`, { params });
   return response.data;
 };

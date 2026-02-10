@@ -118,11 +118,14 @@ export const useProfile = (): UseProfileReturn => {
 
   // Helper function to get auth token
   const getAuthToken = () => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('token');
-    }
-    return null;
-  };
+  if (typeof window !== 'undefined') {
+    // Check all possible token keys (same order as AuthProvider)
+    return localStorage.getItem('authToken') ||
+           localStorage.getItem('accessToken') ||
+           localStorage.getItem('token');
+  }
+  return null;
+};
 
   // Helper function to format address for display
   const formatAddress = useCallback((address?: Address | string): string => {

@@ -174,7 +174,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
       </form>
 
       {/* Filter & Sort Bar */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 pb-4">
         {/* Left: Category Filter & Results Count */}
         <div className="flex items-center gap-3 flex-1">
           {/* Category Dropdown */}

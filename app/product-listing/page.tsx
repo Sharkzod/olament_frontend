@@ -1,323 +1,380 @@
-// app/product-listing/page.tsx
+// app/products/[id]/page.tsx
 'use client';
 
-import React, { useCallback, useRef, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Search, ArrowRight, ArrowLeft } from 'lucide-react';
-import FilterBar from './components/FilterBar';
-import ProductGrid from './components/ProductGrid';
-import LoadingSkeleton from './components/LoadingSkeleton';
-import { LoadingSpinner } from './components/LoadingSkeleton';
-import { useProductListing } from './hooks/useProductListing';
-import { CartProvider } from './hooks/useCart';
-import BottomNav from '../components/Sidebar';
-import CartIcon from './components/CartIcon';
-import CartDrawer from './components/CartDrawer';
-import type { Product, ProductFilters } from './types/product';
+import React, { useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { 
+  Star, 
+  Heart, 
+  ChevronLeft,
+  MessageCircle,
+  MapPin,
+  AlertCircle,
+  Loader2
+} from 'lucide-react';
+import { useProduct } from '@/app/lib/hooks/Useproduct';
+import { useChat } from '@/app/lib/hooks/useChat';
 
-/**
- * Product Listing Content Component
- * Inner component that uses cart context
- */
-function ProductListingContent() {
+const ProductPage = () => {
+  const params = useParams();
   const router = useRouter();
-  
-  // Cart drawer state
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  
-  // Use the product listing hook
-  const {
-    products,
-    isLoading,
-    error,
-    pagination,
-    filters,
-    loadMore,
-    updateFilters,
-    refetch,
-  } = useProductListing();
+  const productId = params?.id as string;
 
-  // Intersection observer ref for infinite scroll
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const [selectedImage, setSelectedImage] = useState(0);
+  const [isFavorite, setIsFavorite] = useState(false);
 
-  /**
-   * Handle cart icon click - open drawer
-   */
-  const handleCartClick = useCallback(() => {
-    setIsCartOpen(true);
-  }, []);
+  // Fetch product using the custom hook
+  const { product, isLoading, error, refetch } = useProduct({
+    productId,
+    autoFetch: true,
+  });
 
-  /**
-   * Handle cart drawer close
-   */
-  const handleCartClose = useCallback(() => {
-    setIsCartOpen(false);
-  }, []);
+  // Chat hook
+  const { createChat, isCreating, error: chatError } = useChat();
 
-  /**
-   * Handle product card click
-   * TODO: Navigate to product details page
-   */
-  const handleProductClick = useCallback((product: Product) => {
-    console.log('Product clicked:', product.id);
-    // TODO: router.push(`/products/${product.id}`);
-  }, []);
+  // Handle Contact Seller button click
+const handleContactSeller = async () => {
+  if (!product || !product.vendor) {
+    console.error('Product or vendor information not available');
+    return;
+  }
 
-  /**
-   * Handle search query
-   */
-  const handleSearch = useCallback((query: string) => {
-    updateFilters({ ...filters, search: query });
-  }, [filters, updateFilters]);
+  try {
+    // Create chat
+    const chatResponse = await createChat({
+      productId: product._id,
+      vendorId: product.vendor._id,
+    });
 
-  /**
-   * Handle filter changes
-   */
-  const handleFilterChange = useCallback((newFilters: ProductFilters) => {
-    updateFilters(newFilters);
-  }, [updateFilters]);
+    console.log('Full chatResponse:', chatResponse);
 
-  /**
-   * Setup intersection observer for infinite scroll
-   */
-  useEffect(() => {
-    if (pagination.hasMore && loadMoreRef.current) {
-      observerRef.current = new IntersectionObserver(
-        (entries) => {
-          const [entry] = entries;
-          if (entry.isIntersecting && !isLoading && pagination.hasMore) {
-            loadMore();
-          }
-        },
-        {
-          rootMargin: '200px',
-          threshold: 0.1,
-        }
-      );
-
-      observerRef.current.observe(loadMoreRef.current);
+    if (chatResponse && chatResponse.success && chatResponse.data) {
+      // Navigate to chat page with the conversation ID as a query parameter
+      router.push(`/chat?conversationId=${chatResponse.data._id}`);
+      console.log('Chat created successfully, navigating to chat page:', chatResponse.data._id);
     }
+  } catch (error: any) {
+    console.error('Error in handleContactSeller:', error);
+    
+    // Show the actual error from the API
+    const errorMessage = error.response?.data?.message || error.message || 'An error occurred. Please try again.';
+    alert(errorMessage);
+  }
+};
+  // Format specification key for display
+  const formatSpecKey = (key: string) => {
+    // Convert camelCase to Title Case
+    return key
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, (str) => str.toUpperCase())
+      .trim();
+  };
 
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-  }, [pagination.hasMore, isLoading, loadMore]);
+  // Prepare images array
+  const allImages = product?.images || [];
 
-  /**
-   * Handle retry on error
-   */
-  const handleRetry = useCallback(() => {
-    refetch();
-  }, [refetch]);
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-yellow-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 text-lg">Loading product...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl border-2 border-red-200 p-8 text-center">
+          <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Product</h2>
+          <p className="text-gray-600 mb-6">{error.message}</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => router.back()}
+              className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors"
+            >
+              Go Back
+            </button>
+            <button
+              onClick={() => refetch()}
+              className="px-6 py-3 bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-semibold rounded-xl transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // No product found
+  if (!product) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl border-2 border-gray-200 p-8 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="h-8 w-8 text-gray-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Product Not Found</h2>
+          <p className="text-gray-600 mb-6">
+            The product you're looking for doesn't exist or has been removed.
+          </p>
+          <button
+            onClick={() => router.push('/categories')}
+            className="px-6 py-3 bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-semibold rounded-xl transition-colors"
+          >
+            Browse Products
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate discount if applicable
+  const discount = product.discountPrice 
+    ? Math.round(((product.price - product.discountPrice) / product.price) * 100)
+    : product.discountPercentage || 0;
+
+  const displayPrice = product.discountPrice || product.price;
+  const originalPrice = product.discountPrice ? product.price : undefined;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Cart Drawer */}
-      <CartDrawer isOpen={isCartOpen} onClose={handleCartClose} />
-
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-yellow-400 flex items-center justify-center">
-                <span className="text-xl font-bold text-gray-900">O</span>
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-gray-900">Explore</h1>
-                <p className="text-xs text-gray-500">Discover amazing products</p>
-              </div>
-            </div>
-
-            {/* Right Actions */}
-            <div className="flex items-center gap-3">
-              {/* Cart Icon with count badge */}
-              <CartIcon onClick={handleCartClick} />
-              
-              {/* Search Icon (mobile) */}
-              <button
-                className="p-2 text-gray-500 hover:text-gray-700 transition-colors md:hidden"
-                aria-label="Search"
-              >
-                <Search className="h-5 w-5" />
-              </button>
-            </div>
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <button 
+              onClick={() => router.back()}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <ChevronLeft className="h-5 w-5" />
+              <span className="text-sm font-semibold">Back</span>
+            </button>
+            <button 
+              onClick={() => setIsFavorite(!isFavorite)}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <Heart className={`h-5 w-5 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Back Button */}
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 px-4 py-3 mb-4 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all duration-200 group w-fit"
-          aria-label="Go back"
-        >
-          <ArrowLeft className="h-5 w-5 transition-transform duration-200 group-hover:-translate-x-1" />
-          <span className="text-sm font-medium">Back</span>
-        </button>
+      <main className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Image Gallery */}
+          <div className="space-y-4">
+            <div className="relative aspect-square rounded-2xl overflow-hidden bg-white border border-gray-200">
+              <img
+                src={allImages[selectedImage]?.url || '/placeholder-product.jpg'}
+                alt={allImages[selectedImage]?.altText || product.name}
+                className="w-full h-full object-contain p-8"
+              />
+              {product.condition === 'new' && (
+                <div className="absolute top-4 left-4">
+                  <span className="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full">
+                    New
+                  </span>
+                </div>
+              )}
+              {discount > 0 && (
+                <div className="absolute top-4 right-4">
+                  <span className="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full">
+                    -{discount}% OFF
+                  </span>
+                </div>
+              )}
+            </div>
 
-        {/* Page Title */}
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">
-            All Products
-          </h2>
-          <p className="text-gray-600 mt-1">
-            Browse our collection of products from trusted vendors
-          </p>
+            {/* Thumbnails */}
+            {allImages.length > 1 && (
+              <div className="grid grid-cols-3 gap-3">
+                {allImages.map((image, index) => (
+                  <button
+                    key={image._id || index}
+                    onClick={() => setSelectedImage(index)}
+                    className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${
+                      selectedImage === index 
+                        ? 'border-yellow-400 shadow-lg' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <img
+                      src={image.url}
+                      alt={image.altText || `${product.name} - Image ${index + 1}`}
+                      className="w-full h-full object-contain p-2 bg-gray-50"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Product Info */}
+          <div className="space-y-6">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold uppercase rounded-full">
+                  {product.category}
+                </span>
+                {product.inStock ? (
+                  <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
+                    In Stock
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">
+                    Out of Stock
+                  </span>
+                )}
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+                {product.name}
+              </h1>
+              <p className="text-gray-600 leading-relaxed">
+                {product.description}
+              </p>
+              {product.sku && (
+                <p className="text-sm text-gray-500 mt-2">SKU: {product.sku}</p>
+              )}
+            </div>
+
+            {/* Rating */}
+            {product.ratings && product.ratings.count > 0 && (
+              <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
+                <div className="flex">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`h-5 w-5 ${
+                        i < Math.floor(product.ratings.average)
+                          ? 'fill-yellow-400 text-yellow-400'
+                          : 'text-gray-300'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="font-semibold text-gray-900">
+                  {product.ratings.average.toFixed(1)}
+                </span>
+                <span className="text-sm text-gray-500">
+                  ({product.ratings.count} reviews)
+                </span>
+              </div>
+            )}
+
+            {/* Price */}
+            <div className="bg-yellow-50 rounded-xl p-6 border-2 border-yellow-200">
+              <div className="flex items-baseline gap-3">
+                <span className="text-4xl font-bold text-gray-900">
+                  ${displayPrice.toFixed(2)}
+                </span>
+                {originalPrice && (
+                  <span className="text-xl text-gray-400 line-through">
+                    ${originalPrice.toFixed(2)}
+                  </span>
+                )}
+              </div>
+              {product.quantity && (
+                <p className="text-sm text-gray-600 mt-2">
+                  {product.quantity} units available
+                </p>
+              )}
+            </div>
+
+            {/* Tags */}
+            {product.tags && product.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {product.tags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg transition-colors cursor-default"
+                  >
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* CTA - Contact Seller Button */}
+            <button 
+              onClick={handleContactSeller}
+              disabled={!product.inStock || isCreating}
+              className="w-full px-8 py-4 bg-yellow-400 hover:bg-yellow-300 disabled:bg-gray-300 disabled:cursor-not-allowed text-gray-900 font-bold rounded-xl text-lg flex items-center justify-center gap-2 transition-all transform hover:scale-105 disabled:transform-none"
+            >
+              {isCreating ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Creating Chat...
+                </>
+              ) : (
+                <>
+                  <MessageCircle className="h-5 w-5" />
+                  {product.inStock ? 'Contact Seller' : 'Out of Stock'}
+                </>
+              )}
+            </button>
+
+            {/* Error message if chat creation fails */}
+            {chatError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                <p className="text-red-800 text-sm">{chatError.message}</p>
+              </div>
+            )}
+
+            {/* Vendor */}
+            {product.vendor && (
+              <div className="bg-white rounded-xl p-6 border-2 border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-500 mb-3">Sold by</h3>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                    {product.vendor.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-gray-900">{product.vendor.name}</p>
+                    <div className="flex items-center gap-1 text-sm text-gray-500">
+                      <MapPin className="h-3.5 w-3.5" />
+                      <span>Lagos, Nigeria</span>
+                    </div>
+                  </div>
+                  {product.vendor.accountStatus === 'active' && (
+                    <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
+                      Verified
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Filter Bar */}
-        <FilterBar
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          onSearch={handleSearch}
-          totalCount={pagination.total}
-        />
-
-        {/* Error State */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-6 my-6">
-            <div className="flex flex-col items-center text-center">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                <svg
-                  className="w-6 h-6 text-red-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+        {/* Specifications */}
+        {product.specifications && product.specifications.length > 0 && (
+          <div className="mt-12 bg-white rounded-2xl border border-gray-200 p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Specifications</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {product.specifications.map((spec, index) => (
+                <div
+                  key={spec._id || index}
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-red-800 mb-2">
-                Something went wrong
-              </h3>
-              <p className="text-red-600 mb-4">{error}</p>
-              <button
-                onClick={handleRetry}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
-              >
-                Try Again
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Loading State (Initial) */}
-        {isLoading && products.length === 0 && (
-          <div className="mt-8">
-            <LoadingSkeleton count={8} />
-          </div>
-        )}
-
-        {/* Product Grid */}
-        {!error && !isLoading && (
-          <ProductGrid
-            products={products}
-            onProductClick={handleProductClick}
-            emptyMessage="No products found"
-          />
-        )}
-
-        {/* Load More Trigger / Loading More Indicator */}
-        {products.length > 0 && (
-          <div ref={loadMoreRef} className="mt-8 py-8">
-            {isLoading && pagination.page > 1 && (
-              <div className="flex justify-center py-4">
-                <LoadingSpinner className="h-8 w-8" />
-              </div>
-            )}
-            
-            {!pagination.hasMore && products.length > 0 && (
-              <div className="text-center py-8">
-                <p className="text-gray-500">
-                  You{String.fromCharCode(39)}ve seen all {pagination.total} products
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Quick Categories (Optional Enhancement) */}
-        {products.length > 0 && (
-          <section className="mt-12">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Popular Categories
-              </h3>
-              <button className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1">
-                View All
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {[
-                { name: 'Electronics', count: 234, image: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w-400&q=80' },
-                { name: 'Fashion', count: 567, image: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w-400&q=80' },
-                { name: 'Groceries', count: 189, image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w-400&q=80' },
-                { name: 'Home & Living', count: 145, image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w-400&q=80' },
-              ].map((category) => (
-                <button
-                  key={category.name}
-                  className="group relative overflow-hidden rounded-xl aspect-[4/3] bg-gray-100"
-                  onClick={() => handleFilterChange({ category: category.name })}
-                >
-                  <img
-                    src={category.image}
-                    alt={category.name}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-                    <h4 className="font-semibold">{category.name}</h4>
-                    <p className="text-sm text-gray-200">{category.count} products</p>
-                  </div>
-                </button>
+                  <span className="font-semibold text-gray-700">
+                    {formatSpecKey(spec.key)}
+                  </span>
+                  <span className="text-gray-900 text-right">{spec.value}</span>
+                </div>
               ))}
             </div>
-          </section>
+          </div>
         )}
       </main>
-
-      {/* Footer Spacing (for bottom nav on mobile) */}
-      <div className="h-20" />
-
-      {/* Bottom Navigation */}
-      <BottomNav />
     </div>
   );
-}
+};
 
-/**
- * Explore Page (Product Listing)
- * Main entry point for browsing all products
- * 
- * Features:
- * - Responsive product grid (mobile: 1 col, tablet: 2 cols, desktop: 3-4 cols)
- * - Search and filter functionality
- * - Infinite scroll pagination
- * - Loading skeletons
- * - Empty states
- * - Haptic micro-bounce add-to-cart button
- * - Cart drawer with quantity controls
- * 
- * TODO: Connect to backend API for real data
- */
-export default function ProductListingPage() {
-  return (
-    <CartProvider>
-      <ProductListingContent />
-    </CartProvider>
-  );
-}
+export default ProductPage;

@@ -1,6 +1,6 @@
 // hooks/useProducts.ts
-import { useState, useEffect, useCallback } from 'react';
-import { getAllProducts } from '../api/productsApi';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { getAllProducts, getProductsByCategory } from '../api/productsApi';
 import { Product, ProductFilters } from '@/types/product';
 
 interface PaginationInfo {
@@ -16,7 +16,8 @@ interface PaginationInfo {
 
 interface ProductsResponse {
   success: boolean;
-  docs: Product[];
+  data?: Product[]; // For category endpoint
+  docs?: Product[]; // For general products endpoint
   totalDocs: number;
   limit: number;
   totalPages: number;
@@ -26,11 +27,15 @@ interface ProductsResponse {
   hasNextPage: boolean;
   prevPage: number | null;
   nextPage: number | null;
+  category?: any; // Category info from category endpoint
+  breadcrumb?: any[]; // Breadcrumb from category endpoint
+  filters?: any; // Filters from category endpoint
 }
 
 interface UseProductsOptions {
   filters?: ProductFilters;
   autoFetch?: boolean;
+  useCategoryEndpoint?: boolean; // New option to use category-specific endpoint
   onSuccess?: (data: ProductsResponse) => void;
   onError?: (error: Error) => void;
 }
@@ -41,6 +46,9 @@ interface UseProductsReturn {
   pagination: PaginationInfo | null;
   isLoading: boolean;
   error: Error | null;
+  categoryInfo: any | null; // Category metadata
+  breadcrumb: any[] | null; // Breadcrumb trail
+  availableFilters: any | null; // Available filters (brands, price range, etc.)
   
   // Actions
   fetchProducts: (customFilters?: ProductFilters) => Promise<void>;
@@ -56,6 +64,7 @@ interface UseProductsReturn {
 export const useProducts = ({
   filters = {},
   autoFetch = true,
+  useCategoryEndpoint = true, // Default to using category endpoint
   onSuccess,
   onError,
 }: UseProductsOptions = {}): UseProductsReturn => {
@@ -65,11 +74,25 @@ export const useProducts = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [isFirstLoad, setIsFirstLoad] = useState<boolean>(true);
+  const [categoryInfo, setCategoryInfo] = useState<any | null>(null);
+  const [breadcrumb, setBreadcrumb] = useState<any[] | null>(null);
+  const [availableFilters, setAvailableFilters] = useState<any | null>(null);
+  
+  // Use ref to track if we're currently fetching to prevent duplicate requests
+  const isFetchingRef = useRef(false);
+  const lastFiltersRef = useRef<string>('');
 
-  // Main fetch function
+  // Main fetch function - NOT dependent on filters
   const fetchProducts = useCallback(async (customFilters?: ProductFilters) => {
+    // Prevent duplicate simultaneous requests
+    if (isFetchingRef.current) {
+      console.log('⏸️ useProducts - Skipping duplicate request');
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
+    isFetchingRef.current = true;
     
     try {
       // Merge default filters with custom ones
@@ -79,16 +102,42 @@ export const useProducts = ({
       if (!mergedFilters.page) mergedFilters.page = 1;
       if (!mergedFilters.limit) mergedFilters.limit = 20;
       
-      const response = await getAllProducts(mergedFilters);
+      let response: ProductsResponse;
+      
+      // Use category-specific endpoint if category is provided and useCategoryEndpoint is true
+      if (useCategoryEndpoint && mergedFilters.category) {
+        // Extract category slug and remove from params
+        const categorySlug = mergedFilters.category;
+        const { category, ...restParams } = mergedFilters;
+        
+        console.log(`🔍 Fetching products for category: ${categorySlug}`);
+        response = await getProductsByCategory(categorySlug, restParams);
+      } else {
+        // Use general products endpoint
+        response = await getAllProducts(mergedFilters);
+      }
       
       console.log('🔍 useProducts - Raw API response:', response);
       
-      // The response itself is the data (not nested under response.data)
-      // Response structure: { success, docs, page, limit, totalDocs, ... }
-      if (response && response.success && response.docs) {
-        // Products are in the 'docs' array
-        const fetchedProducts = response.docs || [];
+      // Handle response - category endpoint uses 'data', general uses 'docs'
+      if (response && response.success) {
+        const fetchedProducts = response.data || response.docs || [];
         setProducts(fetchedProducts);
+        
+        // Set category info if available (from category endpoint)
+        if (response.category) {
+          setCategoryInfo(response.category);
+        }
+        
+        // Set breadcrumb if available
+        if (response.breadcrumb) {
+          setBreadcrumb(response.breadcrumb);
+        }
+        
+        // Set available filters if available
+        if (response.filters) {
+          setAvailableFilters(response.filters);
+        }
         
         // Build pagination info from API response
         const paginationInfo: PaginationInfo = {
@@ -106,7 +155,9 @@ export const useProducts = ({
         
         console.log('✅ useProducts - Parsed:', {
           productsCount: fetchedProducts.length,
-          pagination: paginationInfo
+          pagination: paginationInfo,
+          categoryInfo: response.category?.name,
+          hasFilters: !!response.filters
         });
         
         // Call success callback if provided
@@ -117,6 +168,9 @@ export const useProducts = ({
         console.warn('⚠️ useProducts - Unexpected response structure:', response);
         setProducts([]);
         setPagination(null);
+        setCategoryInfo(null);
+        setBreadcrumb(null);
+        setAvailableFilters(null);
       }
       
       if (isFirstLoad) {
@@ -128,6 +182,9 @@ export const useProducts = ({
       setError(error);
       setProducts([]);
       setPagination(null);
+      setCategoryInfo(null);
+      setBreadcrumb(null);
+      setAvailableFilters(null);
       
       // Call error callback if provided
       if (onError) {
@@ -135,58 +192,14 @@ export const useProducts = ({
       }
     } finally {
       setIsLoading(false);
+      isFetchingRef.current = false;
     }
-  }, [filters, onSuccess, onError, isFirstLoad]);
-
-  // Load next page
-  const loadNextPage = useCallback(async () => {
-    if (!pagination?.hasNextPage || isLoading) return;
-    
-    try {
-      setIsLoading(true);
-      const nextPage = pagination.nextPage || (pagination.page + 1);
-      const response = await getAllProducts({ ...filters, page: nextPage });
-      
-      if (response && response.success && response.docs) {
-        const newProducts = response.docs || [];
-        
-        // Append new products
-        setProducts(prev => [...prev, ...newProducts]);
-        
-        // Update pagination
-        const paginationInfo: PaginationInfo = {
-          page: response.page || nextPage,
-          limit: response.limit || 20,
-          totalDocs: response.totalDocs || 0,
-          totalPages: response.totalPages || 0,
-          hasNextPage: response.hasNextPage || false,
-          hasPrevPage: response.hasPrevPage || false,
-          nextPage: response.nextPage || null,
-          prevPage: response.prevPage || null,
-        };
-        
-        setPagination(paginationInfo);
-        
-        if (onSuccess) {
-          onSuccess(response);
-        }
-      }
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to load more products');
-      setError(error);
-      
-      if (onError) {
-        onError(error);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [pagination, filters, isLoading, onSuccess, onError]);
+  }, []); // Empty dependency array - we'll pass filters as arguments
 
   // Refetch current data
-  const refetch = useCallback(async () => {
-    await fetchProducts();
-  }, [fetchProducts]);
+  const refetch = useCallback(() => {
+    return fetchProducts(filters);
+  }, [fetchProducts, filters]);
 
   // Reset state
   const reset = useCallback(() => {
@@ -194,14 +207,26 @@ export const useProducts = ({
     setPagination(null);
     setError(null);
     setIsFirstLoad(true);
+    setCategoryInfo(null);
+    setBreadcrumb(null);
+    setAvailableFilters(null);
+    isFetchingRef.current = false;
   }, []);
 
-  // Auto-fetch on mount if enabled
+  // Auto-fetch on mount and when filters change
   useEffect(() => {
-    if (autoFetch) {
-      fetchProducts();
+    if (!autoFetch) return;
+    
+    // Create a stable string representation of filters to compare
+    const filtersString = JSON.stringify(filters);
+    
+    // Only fetch if filters have actually changed
+    if (filtersString !== lastFiltersRef.current) {
+      console.log('🔄 useProducts - Filters changed, fetching...', filters);
+      lastFiltersRef.current = filtersString;
+      fetchProducts(filters);
     }
-  }, [autoFetch, fetchProducts]);
+  }, [autoFetch, filters]); // Only depend on autoFetch and filters
 
   // Computed properties
   const hasMore = Boolean(pagination?.hasNextPage);
@@ -213,12 +238,14 @@ export const useProducts = ({
     pagination,
     isLoading,
     error,
+    categoryInfo,
+    breadcrumb,
+    availableFilters,
     
     // Actions
     fetchProducts,
     refetch,
     reset,
-    // loadNextPage, // Uncomment if you want to expose this
     
     // Helpers
     hasMore,

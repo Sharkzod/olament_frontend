@@ -1,15 +1,12 @@
-// ==========================================
-// Chat Page - Clean, Premium Messaging UI
-// ==========================================
-
+// app/chat/[id]/page.tsx - Simplified version
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useChatMessages } from './hooks/useChatMessages';
-import { useSocketChat } from './hooks/useSocketChat';
-import { Message, Participant } from './types/chat';
-import { mockParticipants } from './data/mockData';
+import { useChatMessages } from '@/app/lib/hooks/useChatMessages';
+import { useSocketChat } from '@/app/lib/hooks/useSocketChat';
+import { useChats } from '@/app/lib/hooks/useChats';
+import { useAuth } from '@/app/lib/hooks/useAuthApi';
 
 // Components
 import ChatHeader from './components/ChatHeader';
@@ -18,35 +15,75 @@ import MessageInput from './components/MessageInput';
 import { ChatLoadingSkeleton } from './components/EmptyState';
 
 // Icons
-import { 
-  ChevronLeft
-} from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 
-/**
- * Check if running on mobile
- */
 const isMobileDevice = (): boolean => {
   if (typeof window === 'undefined') return false;
   return window.innerWidth < 768;
 };
 
-/**
- * Main Chat Page - Single Conversation View
- */
+const getChatParticipant = (chat: any, currentUserId: string) => {
+  if (!chat || !currentUserId) return null;
+  
+  const isBuyer = chat.buyer.id === currentUserId || chat.buyer._id === currentUserId;
+  const otherParticipant = isBuyer ? chat.seller : chat.buyer;
+  
+  return {
+    id: otherParticipant._id || otherParticipant.id,
+    name: otherParticipant.name,
+    avatar: otherParticipant.avatar !== 'default-avatar.png' ? otherParticipant.avatar : undefined,
+    role: isBuyer ? 'vendor' : 'customer',
+    online: otherParticipant.accountStatus === 'active',
+  };
+};
+
 export default function ChatPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+  const { user, isLoading: authLoading, isInitialized } = useAuth();
   const [isMobile, setIsMobile] = useState(false);
   const [prefilledMessage, setPrefilledMessage] = useState('');
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Get conversation ID from params or use default (conv_fitness for Smart Fitness Watch)
-  const conversationId = searchParams.get('conversationId') || 'conv_fitness';
-  
-  // Get participant info based on conversation
-  const participant = mockParticipants.vendor1; // Default to Tech Gadgets Store
+  const conversationId = searchParams.get('conversationId');
+  const currentUserId = user?._id || user?.id;
 
-  // Read query parameters on mount for pre-filled message
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (isInitialized && !authLoading && !user) {
+      console.log('🚫 Not authenticated, redirecting to login');
+      router.push('/login');
+    }
+  }, [isInitialized, authLoading, user, router]);
+
+  // Socket connection
+  const { 
+    socket, 
+    isConnected, 
+    lastMessage,
+    sendTypingIndicator, 
+    emitMessageRead, 
+    joinConversation,
+    leaveConversation,
+  } = useSocketChat();
+
+  // Fetch chat details
+  const shouldFetchChats = !!currentUserId && !!conversationId;
+  const { chats } = useChats({
+    params: { limit: 100 },
+    autoFetch: shouldFetchChats,
+  });
+
+  const currentChat = useMemo(() => {
+    return chats.find((chat) => chat._id === conversationId);
+  }, [chats, conversationId]);
+
+  const participant = useMemo(() => {
+    if (!currentUserId) return null;
+    return getChatParticipant(currentChat, currentUserId);
+  }, [currentChat, currentUserId]);
+
+  // Read query parameters
   useEffect(() => {
     const message = searchParams.get('message');
     if (message) {
@@ -56,16 +93,13 @@ export default function ChatPage() {
 
   // Handle window resize
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(isMobileDevice());
-    };
-
+    const checkMobile = () => setIsMobile(isMobileDevice());
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Fetch messages for conversation
+  // Fetch messages
   const {
     messages,
     loading: messagesLoading,
@@ -74,88 +108,205 @@ export default function ChatPage() {
     sendMessage,
     receiveMessage,
     markAsRead,
-  } = useChatMessages(conversationId);
-
-  // Socket connection for real-time updates
-  useSocketChat({
-    conversationId,
-    onNewMessage: receiveMessage,
+    setIsTyping,
+    error: messagesError,
+    fetchMessages
+  } = useChatMessages(conversationId || '', {
+    autoFetch: !!conversationId && !!currentUserId,
   });
 
-  // Navigate to product listing
-  const handleBack = useCallback(() => {
-    router.push('/product-listing');
-  }, [router]);
+  // Setup socket listeners
+  useEffect(() => {
+    if (!socket || !conversationId || !currentUserId) return;
+
+    const handleConnect = () => {
+      console.log('✅ Socket connected, joining conversation:', conversationId);
+      joinConversation(conversationId);
+    };
+
+    const handleNewMessage = (data: any) => {
+      const message = data.message || data;
+      const messageConvId = data.conversationId || message.conversation || message.chat;
+      
+      if (messageConvId === conversationId) {
+        receiveMessage(message);
+      }
+    };
+
+    const handleTyping = ({ userId, isTyping: typing }: any) => {
+      if (userId !== currentUserId) {
+        setIsTyping(typing);
+      }
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('newMessage', handleNewMessage);
+    socket.on('typing', handleTyping);
+
+    if (isConnected) {
+      joinConversation(conversationId);
+    }
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('newMessage', handleNewMessage);
+      socket.off('typing', handleTyping);
+      
+      if (conversationId) {
+        leaveConversation(conversationId);
+      }
+    };
+  }, [socket, isConnected, conversationId, currentUserId, receiveMessage, setIsTyping, joinConversation, leaveConversation]);
+
+  // Handle typing
+  const handleTyping = useCallback(() => {
+    if (conversationId && isConnected && currentUserId) {
+      sendTypingIndicator(conversationId, true);
+      
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      
+      typingTimeoutRef.current = setTimeout(() => {
+        if (isConnected) {
+          sendTypingIndicator(conversationId, false);
+        }
+      }, 3000);
+    }
+  }, [conversationId, sendTypingIndicator, isConnected, currentUserId]);
 
   // Send message handler
-  const handleSendMessage = useCallback(async (content: string) => {
-    await sendMessage(content);
-    if (prefilledMessage) {
-      setPrefilledMessage('');
-    }
-  }, [sendMessage, prefilledMessage]);
+  const handleSendMessage = useCallback(
+    async (content: string) => {
+      if (!conversationId || !content.trim() || !currentUserId) return;
 
-  // Mark messages as read when conversation is opened
+      try {
+        if (isConnected) {
+          sendTypingIndicator(conversationId, false);
+        }
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+
+        await sendMessage(content);
+        
+        if (prefilledMessage) {
+          setPrefilledMessage('');
+        }
+      } catch (error) {
+        console.error('Failed to send message:', error);
+      }
+    },
+    [sendMessage, prefilledMessage, conversationId, sendTypingIndicator, isConnected, currentUserId]
+  );
+
+  // Mark as read
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 0 && currentUserId && conversationId && isConnected) {
       const unreadMessages = messages
-        .filter((m) => m.senderId !== 'user1' && m.status !== 'read')
-        .map((m) => m.id);
+        .filter((m) => m.senderId !== currentUserId && m.status !== 'read')
+        .map((m) => m.id)
+        .filter(id => id && id !== 'undefined');
       
       if (unreadMessages.length > 0) {
         markAsRead(unreadMessages);
+        emitMessageRead(conversationId, unreadMessages);
       }
     }
-  }, [messages, markAsRead]);
+  }, [messages, markAsRead, currentUserId, emitMessageRead, conversationId, isConnected]);
 
-  // Loading state
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Loading states
+  if (!conversationId) {
+    return (
+      <div className="h-screen bg-gray-50 flex flex-col items-center justify-center">
+        <div className="text-center px-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No conversation selected</h3>
+          <button
+            onClick={() => router.push('/orders')}
+            className="px-6 py-2.5 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
+          >
+            Go to Messages
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isInitialized || authLoading) {
+    return (
+      <div className="h-screen bg-gray-50 flex flex-col items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mb-4"></div>
+        <p className="text-sm text-gray-600">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!user || !currentUserId) {
+    return null; // Will redirect via useEffect
+  }
+
   if (messagesLoading) {
     return (
       <div className="h-screen bg-gray-50 flex flex-col">
-        {/* Header */}
-        <header className="h-14 bg-white border-b border-gray-100 flex items-center px-4 shrink-0">
-          <button
-            onClick={handleBack}
-            className="p-2 -ml-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
-            aria-label="Back"
-          >
+        <header className="h-14 bg-white border-b flex items-center px-4">
+          <button onClick={() => router.push('/orders')} className="p-2">
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-[15px] font-semibold text-gray-900 ml-2">Loading...</h1>
         </header>
-        <div className="flex-1 overflow-hidden">
-          <ChatLoadingSkeleton />
+        <ChatLoadingSkeleton />
+      </div>
+    );
+  }
+
+  if (messagesError) {
+    return (
+      <div className="h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h3 className="text-lg font-semibold mb-2">Failed to load messages</h3>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2.5 bg-yellow-500 text-white rounded-lg"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen chat-page flex flex-col bg-gray-50">
-      {/* Header */}
+    <div className="h-screen flex flex-col bg-gray-50">
       <ChatHeader
         participant={participant}
-        onBack={handleBack}
+        onBack={() => router.push('/orders')}
         isMobile={isMobile}
       />
 
-      {/* Chat Window - scrollable area */}
       <div className="flex-1 overflow-hidden">
         <ChatWindow
           messages={messages}
           participant={participant}
-          currentUserId="user1"
+          currentUserId={currentUserId}
           isTyping={isTyping}
         />
       </div>
 
-      {/* Message Input */}
-      <div className="bg-white border-t border-gray-100 shrink-0">
+      <div className="bg-white border-t shrink-0">
         <MessageInput
           onSendMessage={handleSendMessage}
           sending={sending}
           placeholder="Write a Message"
           initialMessage={prefilledMessage}
+          onTyping={handleTyping}
         />
       </div>
     </div>

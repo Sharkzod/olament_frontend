@@ -53,13 +53,26 @@ class MarketApi {
     }
   }
 
-  // Get markets by state
+  // Get markets by state - UPDATED to handle state name variations
   async getMarketsByState(state: string): Promise<MarketResponse> {
     try {
       console.log('🏪 MarketApi: Getting markets by state:', state);
-      const response = await apiClient.get(`/markets/state/${encodeURIComponent(state)}`);
-      console.log('🏪 MarketApi: Markets by state response:', response.data);
-      return response.data;
+      
+      // Try different variations if the first request fails
+      try {
+        const response = await apiClient.get(`/markets/state/${encodeURIComponent(state)}`);
+        console.log('🏪 MarketApi: Markets by state response:', response.data);
+        return response.data;
+      } catch (error: any) {
+        // If 404, try with "State" appended
+        if (error.response?.status === 404 && !state.includes('State')) {
+          console.log('🏪 MarketApi: Trying with "State" suffix...');
+          const response = await apiClient.get(`/markets/state/${encodeURIComponent(state + ' State')}`);
+          console.log('🏪 MarketApi: Markets by state response (with suffix):', response.data);
+          return response.data;
+        }
+        throw error;
+      }
     } catch (error: any) {
       console.error('🏪 MarketApi: Markets by state fetch error:', error);
       throw error;
