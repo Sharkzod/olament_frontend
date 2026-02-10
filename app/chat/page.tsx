@@ -236,11 +236,40 @@ export default function ChatPage() {
   }, []);
 
 
-  const transformedMessages = useMemo(() => {
-  return messages.map(message => ({
-    ...message,
-    conversationId: conversationId || '', // Add the conversationId
-  }));
+  // First, let's check what the actual message structure looks like
+useEffect(() => {
+  if (messages.length > 0) {
+    console.log('First message structure:', messages[0]);
+    console.log('Timestamp field type:', typeof messages[0].timestamp);
+    console.log('CreatedAt field:', messages[0].createdAt);
+  }
+}, [messages]);
+
+// Then update the transformation based on what you find:
+const transformedMessages = useMemo(() => {
+  return messages.map(message => {
+    // Determine the timestamp - try different possible fields
+    let timestamp: Date;
+    
+    if (message.timestamp && typeof message.timestamp === 'string') {
+      timestamp = new Date(message.timestamp);
+    } else if (message.createdAt && typeof message.createdAt === 'string') {
+      timestamp = new Date(message.createdAt);
+    } else if (message.timestamp instanceof Date) {
+      timestamp = message.timestamp;
+    } else if (message.createdAt instanceof Date) {
+      timestamp = message.createdAt;
+    } else {
+      // Fallback to current date
+      timestamp = new Date();
+    }
+    
+    return {
+      ...message,
+      conversationId: conversationId || '',
+      timestamp, // Use the determined timestamp
+    };
+  });
 }, [messages, conversationId]);
 
   // Loading states
