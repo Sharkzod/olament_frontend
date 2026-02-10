@@ -17,12 +17,21 @@ import { ChatLoadingSkeleton } from './components/EmptyState';
 // Icons
 import { ChevronLeft } from 'lucide-react';
 
+interface ChatParticipant {
+  id: string;
+  name: string;
+  avatar?: string;
+  role: 'user' | 'vendor';
+  online: boolean;
+}
+
+
 const isMobileDevice = (): boolean => {
   if (typeof window === 'undefined') return false;
   return window.innerWidth < 768;
 };
 
-const getChatParticipant = (chat: any, currentUserId: string) => {
+const getChatParticipant = (chat: any, currentUserId: string): ChatParticipant | null => {
   if (!chat || !currentUserId) return null;
   
   const isBuyer = chat.buyer.id === currentUserId || chat.buyer._id === currentUserId;
@@ -32,7 +41,7 @@ const getChatParticipant = (chat: any, currentUserId: string) => {
     id: otherParticipant._id || otherParticipant.id,
     name: otherParticipant.name,
     avatar: otherParticipant.avatar !== 'default-avatar.png' ? otherParticipant.avatar : undefined,
-    role: isBuyer ? 'vendor' : 'customer',
+    role: isBuyer ? 'vendor' : 'user',
     online: otherParticipant.accountStatus === 'active',
   };
 };
