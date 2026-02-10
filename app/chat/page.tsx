@@ -1,4 +1,4 @@
-// app/chat/[id]/page.tsx - Simplified version
+// app/chat/[id]/page.tsx - CORRECTED
 'use client';
 
 import React, { useState, useCallback, useEffect, useMemo, useRef, Suspense } from 'react';
@@ -25,9 +25,6 @@ interface ChatParticipant {
   online: boolean;
 }
 
-
-
-
 const isMobileDevice = (): boolean => {
   if (typeof window === 'undefined') return false;
   return window.innerWidth < 768;
@@ -48,7 +45,8 @@ const getChatParticipant = (chat: any, currentUserId: string): ChatParticipant |
   };
 };
 
-export default function ChatPage() {
+// RENAME THIS TO ChatPageContent
+function ChatPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoading: authLoading, isInitialized } = useAuth();
@@ -235,28 +233,24 @@ export default function ChatPage() {
     };
   }, []);
 
+  // Message structure debugging
+  useEffect(() => {
+    if (messages.length > 0) {
+      console.log('First message structure:', messages[0]);
+      console.log('Timestamp field type:', typeof messages[0].timestamp);
+      console.log('CreatedAt field:', messages[0].createdAt);
+    }
+  }, [messages]);
 
-  // First, let's check what the actual message structure looks like
-useEffect(() => {
-  if (messages.length > 0) {
-    console.log('First message structure:', messages[0]);
-    console.log('Timestamp field type:', typeof messages[0].timestamp);
-    console.log('CreatedAt field:', messages[0].createdAt);
-  }
-}, [messages]);
-
-// Then update the transformation based on what you find:
-const transformedMessages = useMemo(() => {
-  return messages.map(message => {
-    // Create a new message object with proper types
-    return {
-      ...message,
-      conversationId: conversationId || '',
-      // Always try to create a Date - new Date() can handle strings, numbers, and Date objects
-      timestamp: new Date(message.timestamp || message.createdAt || Date.now()),
-    };
-  });
-}, [messages, conversationId]);
+  const transformedMessages = useMemo(() => {
+    return messages.map(message => {
+      return {
+        ...message,
+        conversationId: conversationId || '',
+        timestamp: new Date(message.timestamp || message.createdAt || Date.now()),
+      };
+    });
+  }, [messages, conversationId]);
 
   // Loading states
   if (!conversationId) {
@@ -285,7 +279,7 @@ const transformedMessages = useMemo(() => {
   }
 
   if (!user || !currentUserId) {
-    return null; // Will redirect via useEffect
+    return null;
   }
 
   if (messagesLoading) {
@@ -317,32 +311,24 @@ const transformedMessages = useMemo(() => {
     );
   }
 
-
   if (!participant) {
-  return (
-    <div className="h-screen bg-gray-50 flex flex-col items-center justify-center">
-      <div className="text-center px-4">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Unable to load chat participant</h3>
-        <button
-          onClick={() => router.push('/orders')}
-          className="px-6 py-2.5 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
-        >
-          Go to Messages
-        </button>
-      </div>
-    </div>
-  );
-}
-
-  return (
-    <Suspense fallback={
+    return (
       <div className="h-screen bg-gray-50 flex flex-col items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mb-4"></div>
-          <p className="text-sm text-gray-600 font-medium">Loading chat...</p>
+        <div className="text-center px-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Unable to load chat participant</h3>
+          <button
+            onClick={() => router.push('/orders')}
+            className="px-6 py-2.5 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
+          >
+            Go to Messages
+          </button>
         </div>
       </div>
-    }>
+    );
+  }
+
+  // REMOVE SUSPENSE FROM HERE - just return the JSX directly
+  return (
     <div className="h-screen flex flex-col bg-gray-50">
       <ChatHeader
         participant={participant}
@@ -350,13 +336,13 @@ const transformedMessages = useMemo(() => {
         isMobile={isMobile}
       />
       <div className="flex-1 overflow-hidden">
-             <ChatWindow
-              messages={transformedMessages}
-              participant={participant}
-              currentUserId={currentUserId}
-              isTyping={isTyping}
-            />
-          </div>
+        <ChatWindow
+          messages={transformedMessages}
+          participant={participant}
+          currentUserId={currentUserId}
+          isTyping={isTyping}
+        />
+      </div>
 
       <div className="bg-white border-t shrink-0">
         <MessageInput
@@ -368,6 +354,21 @@ const transformedMessages = useMemo(() => {
         />
       </div>
     </div>
+  );
+}
+
+// NEW DEFAULT EXPORT - WRAP THE ENTIRE COMPONENT HERE
+export default function ChatPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen bg-gray-50 flex flex-col items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mb-4"></div>
+          <p className="text-sm text-gray-600 font-medium">Loading chat...</p>
+        </div>
+      </div>
+    }>
+      <ChatPageContent />
     </Suspense>
   );
 }
