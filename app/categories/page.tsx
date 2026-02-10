@@ -582,7 +582,8 @@ export default function CategoriesPage() {
   });
 
   // NEW: Fetch product counts for all categories
-  // NEW: Fetch product counts for all categories
+// In your useEffect for fetching category counts, update this part:
+
 useEffect(() => {
   const fetchCategoryCounts = async () => {
     if (categories.length === 0 || loadingCounts) return;
@@ -598,17 +599,18 @@ useEffect(() => {
             category.slug || category.name,
             { limit: 1, page: 1 } // Only need pagination info
           );
-          const categoryId = category._id || category.id;
-          // FIX: Add check for undefined categoryId
-          if (categoryId) {
-            counts[categoryId] = response.totalDocs || response.totalCategoryProducts || 0;
+          
+          // Use a more reliable identifier - prioritize slug over ID
+          const categoryKey = category.slug || category.name || category._id || category.id;
+          
+          if (categoryKey) {
+            counts[categoryKey] = response.totalDocs || response.totalCategoryProducts || 0;
           }
         } catch (error) {
           console.error(`Failed to fetch count for ${category.name}:`, error);
-          const categoryId = category._id || category.id;
-          // FIX: Add check for undefined categoryId
-          if (categoryId) {
-            counts[categoryId] = 0;
+          const categoryKey = category.slug || category.name || category._id || category.id;
+          if (categoryKey) {
+            counts[categoryKey] = 0;
           }
         }
       });
