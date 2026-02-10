@@ -26,6 +26,8 @@ interface ChatParticipant {
 }
 
 
+
+
 const isMobileDevice = (): boolean => {
   if (typeof window === 'undefined') return false;
   return window.innerWidth < 768;
@@ -233,6 +235,14 @@ export default function ChatPage() {
     };
   }, []);
 
+
+  const transformedMessages = useMemo(() => {
+  return messages.map(message => ({
+    ...message,
+    conversationId: conversationId || '', // Add the conversationId
+  }));
+}, [messages, conversationId]);
+
   // Loading states
   if (!conversationId) {
     return (
@@ -299,15 +309,14 @@ export default function ChatPage() {
         onBack={() => router.push('/orders')}
         isMobile={isMobile}
       />
-
       <div className="flex-1 overflow-hidden">
-        <ChatWindow
-          messages={messages}
-          participant={participant}
-          currentUserId={currentUserId}
-          isTyping={isTyping}
-        />
-      </div>
+            <ChatWindow
+              messages={transformedMessages}
+              participant={participant}
+              currentUserId={currentUserId}
+              isTyping={isTyping}
+            />
+          </div>
 
       <div className="bg-white border-t shrink-0">
         <MessageInput
