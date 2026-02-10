@@ -19,9 +19,10 @@ interface AuthHookReturn {
   login: (data: LoginData & { rememberMe?: boolean }) => Promise<{ success: boolean; error?: string }>;
   signup: (data: SignupData) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
-  checkAuth: () => Promise<void>;
+  checkAuth: () => Promise<{ success: boolean; user?: any }>; // Updated
   isInitialized: boolean;
 }
+
 
 export function useAuth(): AuthHookReturn {
   const [user, setUser] = useState<any | null>(null);
