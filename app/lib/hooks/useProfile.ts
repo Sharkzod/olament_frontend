@@ -109,7 +109,8 @@ interface UseProfileReturn {
   formatAddress: (address?: Address | string) => string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://olament-backend-2.onrender.com/api';
+// const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://olament-backend-2.onrender.com/api';
 
 export const useProfile = (): UseProfileReturn => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
