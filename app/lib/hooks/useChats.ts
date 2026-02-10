@@ -12,6 +12,8 @@ export interface ExtendedChat extends Chat {
   };
 }
 
+
+
 interface UseChatsOptions {
   params?: GetChatsParams;
   autoFetch?: boolean;
@@ -81,7 +83,16 @@ export const useChats = (options: UseChatsOptions = {}): UseChatsReturn => {
       console.log('Chats API response:', response);
 
       if (!response.success) {
-        throw new Error(response.message || 'Failed to fetch chats');
+  // Safely extract error message
+        const errorMessage = 
+          typeof response === 'object' && response !== null
+            ? (response as any).message || 
+              (response as any).error || 
+              (response as any).errorMessage || 
+              'Failed to fetch chats'
+            : 'Failed to fetch chats';
+        
+        throw new Error(errorMessage);
       }
 
       const formattedChats = response.data.map(formatChatData);
