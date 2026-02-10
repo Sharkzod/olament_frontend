@@ -80,7 +80,7 @@ export const useUpdateShopStatus = (shopId: string) => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (status: 'open' | 'closed' | 'busy') => shopApi.updateShopStatus(shopId, status),
+    mutationFn: (isOpen: boolean) => shopApi.updateShopStatus(shopId, isOpen),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shop', shopId] });
       queryClient.invalidateQueries({ queryKey: ['myShop'] });
