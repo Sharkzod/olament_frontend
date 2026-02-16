@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://olament-backend-2.onrender.com/api';
+import apiClient from "./apiClient";
 
 // Address interface matching API response
 export interface Address {
@@ -99,60 +97,12 @@ export interface ApiResponse<T> {
   data?: T;
 }
 
-// Get auth token
-const getAuthToken = () => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('token');
-  }
-  return null;
-};
-
-// Create axios instance
-const apiClient = axios.create({
-  baseURL: API_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Add request interceptor to add token
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = getAuthToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Add response interceptor to handle 401 errors globally
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
-      console.log('📡 apiClient: Token expired, clearing localStorage');
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
-      }
-    }
-    return Promise.reject(error);
-  }
-);
-
 // Profile API functions
 export const profileApi = {
   // Get user profile
   async getProfile(): Promise<ApiResponse<UserProfile>> {
     try {
-      console.log('📡 profileApi: Fetching profile from:', `${API_URL}/users/profile`);
+      console.log('📡 profileApi: Fetching profile...');
 
       const response = await apiClient.get('/users/profile');
 
@@ -179,9 +129,12 @@ export const profileApi = {
 
       const response = await apiClient.put('/users/profile', data);
 
+      console.log('📡 profileApi: Update response:', response.data);
+
       return {
         success: true,
         data: response.data.data || response.data.user,
+        message: response.data.message,
       };
     } catch (error: any) {
       console.error('📡 profileApi: Error updating profile:', error);
@@ -196,11 +149,16 @@ export const profileApi = {
   // Upload avatar
   async uploadAvatar(imageUrl: string): Promise<ApiResponse<{ avatar: string }>> {
     try {
+      console.log('📡 profileApi: Uploading avatar...', imageUrl);
+
       const response = await apiClient.put('/users/profile/avatar', { avatar: imageUrl });
+
+      console.log('📡 profileApi: Avatar upload response:', response.data);
 
       return {
         success: true,
         data: response.data.data,
+        message: response.data.message,
       };
     } catch (error: any) {
       console.error('📡 profileApi: Error uploading avatar:', error);
@@ -215,7 +173,11 @@ export const profileApi = {
   // Change password
   async changePassword(data: ChangePasswordData): Promise<ApiResponse<null>> {
     try {
+      console.log('📡 profileApi: Changing password...');
+
       const response = await apiClient.put('/users/change-password', data);
+
+      console.log('📡 profileApi: Password change response:', response.data);
 
       return {
         success: true,

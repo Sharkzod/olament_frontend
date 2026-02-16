@@ -1,5 +1,6 @@
 // lib/hooks/useProfile.ts
 import { useState, useCallback, useEffect } from 'react';
+import apiClient from '../api/apiClient';
 
 // Address interface
 export interface Address {
@@ -97,36 +98,20 @@ interface UseProfileReturn {
   profile: UserProfile | null;
   loading: boolean;
   error: string | null;
-
   // Actions
   getProfile: () => Promise<{ success: boolean; data?: UserProfile; error?: string }>;
   updateProfile: (data: UpdateProfileData) => Promise<{ success: boolean; data?: UserProfile; error?: string }>;
   uploadAvatar: (imageUrl: string) => Promise<{ success: boolean; avatar?: string; error?: string }>;
   changePassword: (data: ChangePasswordData) => Promise<{ success: boolean; error?: string }>;
   clearError: () => void;
-
   // Helper functions
   formatAddress: (address?: Address | string) => string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://olament-backend-2.onrender.com/api';
-// const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://olament-backend-2.onrender.com/api';
-
 export const useProfile = (): UseProfileReturn => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Helper function to get auth token
-  const getAuthToken = () => {
-  if (typeof window !== 'undefined') {
-    // Check all possible token keys (same order as AuthProvider)
-    return localStorage.getItem('authToken') ||
-           localStorage.getItem('accessToken') ||
-           localStorage.getItem('token');
-  }
-  return null;
-};
 
   // Helper function to format address for display
   const formatAddress = useCallback((address?: Address | string): string => {
@@ -156,49 +141,15 @@ export const useProfile = (): UseProfileReturn => {
     try {
       console.log('👤 useProfile: Getting profile...');
 
-      const token = getAuthToken();
-      if (!token) {
-        const errorMsg = 'No authentication token found. Please login.';
-        setError(errorMsg);
-        setLoading(false);
-        return { success: false, error: errorMsg };
-      }
+      const response = await apiClient.get('/auth/profile');
 
-      console.log('👤 useProfile: Fetching from:', `${API_URL}/auth/profile`);
+      console.log('👤 useProfile: Response received:', response.data);
 
-      const response = await fetch(`${API_URL}/auth/profile`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      console.log('👤 useProfile: Response status:', response.status);
-
-      const data = await response.json();
-
-      console.log('👤 useProfile: Response data:', data);
-
-      if (!response.ok) {
-        // Handle 401 Unauthorized (token expired)
-        if (response.status === 401) {
-          console.log('👤 useProfile: Token expired, clearing localStorage');
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
-        }
-
-        const errorMsg = data.message || `HTTP error! status: ${response.status}`;
-        setError(errorMsg);
-        return { success: false, error: errorMsg };
-      }
-
-      if (data.success) {
-        console.log('👤 useProfile: Profile fetched successfully:', data.data?.email);
-
+      if (response.data.success) {
+        console.log('👤 useProfile: Profile fetched successfully:', response.data.data?.email);
+        
         // Store profile data
-        const profileData: UserProfile = data.data || data.user;
+        const profileData: UserProfile = response.data.data || response.data.user;
         setProfile(profileData);
 
         // Also store in localStorage for quick access
@@ -208,13 +159,13 @@ export const useProfile = (): UseProfileReturn => {
 
         return { success: true, data: profileData };
       } else {
-        const errorMsg = data.message || 'Failed to fetch profile';
+        const errorMsg = response.data.message || 'Failed to fetch profile';
         setError(errorMsg);
         return { success: false, error: errorMsg };
       }
     } catch (err: any) {
       console.error('👤 useProfile: Error fetching profile:', err);
-      const errorMessage = err.message || 'Failed to fetch profile. Please check your connection.';
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch profile. Please check your connection.';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -230,35 +181,14 @@ export const useProfile = (): UseProfileReturn => {
     try {
       console.log('👤 useProfile: Updating profile...', data);
 
-      const token = getAuthToken();
-      if (!token) {
-        const errorMsg = 'No authentication token found. Please login.';
-        setError(errorMsg);
-        setLoading(false);
-        return { success: false, error: errorMsg };
-      }
+      const response = await apiClient.put('/auth/profile', data);
 
-      const response = await fetch(`${API_URL}/auth/profile`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
+      console.log('👤 useProfile: Update response:', response.data);
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        const errorMsg = result.message || `HTTP error! status: ${response.status}`;
-        setError(errorMsg);
-        return { success: false, error: errorMsg };
-      }
-
-      if (result.success) {
+      if (response.data.success) {
         console.log('👤 useProfile: Profile updated successfully');
-
-        const updatedProfile: UserProfile = result.data || result.user;
+        
+        const updatedProfile: UserProfile = response.data.data || response.data.user;
         setProfile(updatedProfile);
 
         // Update localStorage
@@ -268,13 +198,13 @@ export const useProfile = (): UseProfileReturn => {
 
         return { success: true, data: updatedProfile };
       } else {
-        const errorMsg = result.message || 'Failed to update profile';
+        const errorMsg = response.data.message || 'Failed to update profile';
         setError(errorMsg);
         return { success: false, error: errorMsg };
       }
     } catch (err: any) {
       console.error('👤 useProfile: Error updating profile:', err);
-      const errorMessage = err.message || 'Failed to update profile. Please check your connection.';
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to update profile. Please check your connection.';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -290,37 +220,19 @@ export const useProfile = (): UseProfileReturn => {
     try {
       console.log('👤 useProfile: Uploading avatar...', imageUrl);
 
-      const token = getAuthToken();
-      if (!token) {
-        const errorMsg = 'No authentication token found. Please login.';
-        setError(errorMsg);
-        setLoading(false);
-        return { success: false, error: errorMsg };
-      }
+      const response = await apiClient.put('/auth/profile', { avatar: imageUrl });
 
-      const response = await fetch(`${API_URL}/auth/profile/avatar`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ avatar: imageUrl }),
-      });
+      console.log('👤 useProfile: Avatar upload response:', response.data);
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        const errorMsg = result.message || `HTTP error! status: ${response.status}`;
-        setError(errorMsg);
-        return { success: false, error: errorMsg };
-      }
-
-      if (result.success) {
+      if (response.data.success) {
         console.log('👤 useProfile: Avatar uploaded successfully');
 
         // Update profile with new avatar
         if (profile) {
-          const updatedProfile = { ...profile, avatar: result.data?.avatar || imageUrl };
+          const updatedProfile = { 
+            ...profile, 
+            avatar: response.data.data?.avatar || imageUrl 
+          };
           setProfile(updatedProfile);
 
           // Update localStorage
@@ -329,15 +241,15 @@ export const useProfile = (): UseProfileReturn => {
           }
         }
 
-        return { success: true, avatar: result.data?.avatar || imageUrl };
+        return { success: true, avatar: response.data.data?.avatar || imageUrl };
       } else {
-        const errorMsg = result.message || 'Failed to upload avatar';
+        const errorMsg = response.data.message || 'Failed to upload avatar';
         setError(errorMsg);
         return { success: false, error: errorMsg };
       }
     } catch (err: any) {
       console.error('👤 useProfile: Error uploading avatar:', err);
-      const errorMessage = err.message || 'Failed to upload avatar. Please check your connection.';
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to upload avatar. Please check your connection.';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -353,42 +265,21 @@ export const useProfile = (): UseProfileReturn => {
     try {
       console.log('👤 useProfile: Changing password...');
 
-      const token = getAuthToken();
-      if (!token) {
-        const errorMsg = 'No authentication token found. Please login.';
-        setError(errorMsg);
-        setLoading(false);
-        return { success: false, error: errorMsg };
-      }
+      const response = await apiClient.put('/auth/change-password', data);
 
-      const response = await fetch(`${API_URL}/auth/change-password`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
+      console.log('👤 useProfile: Password change response:', response.data);
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        const errorMsg = result.message || `HTTP error! status: ${response.status}`;
-        setError(errorMsg);
-        return { success: false, error: errorMsg };
-      }
-
-      if (result.success) {
+      if (response.data.success) {
         console.log('👤 useProfile: Password changed successfully');
         return { success: true };
       } else {
-        const errorMsg = result.message || 'Failed to change password';
+        const errorMsg = response.data.message || 'Failed to change password';
         setError(errorMsg);
         return { success: false, error: errorMsg };
       }
     } catch (err: any) {
       console.error('👤 useProfile: Error changing password:', err);
-      const errorMessage = err.message || 'Failed to change password. Please check your connection.';
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to change password. Please check your connection.';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -401,11 +292,16 @@ export const useProfile = (): UseProfileReturn => {
     let isMounted = true;
 
     const loadProfile = async () => {
-      const token = getAuthToken();
-      if (token && isMounted) {
-        await getProfile();
-      } else if (isMounted) {
-        setLoading(false);
+      if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('authToken') || 
+                       localStorage.getItem('accessToken') || 
+                       localStorage.getItem('token');
+        
+        if (token && isMounted) {
+          await getProfile();
+        } else if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
