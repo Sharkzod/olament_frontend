@@ -199,11 +199,11 @@ const FavoriteProductCard: React.FC<FavoriteProductCardProps> = ({
         {/* Price */}
         <div className="flex items-baseline gap-2">
           <span className="text-xl font-bold text-gray-900">
-            ${displayPrice.toFixed(2)}
+            {'\u20A6'}{displayPrice.toLocaleString()}
           </span>
           {originalPrice && (
             <span className="text-sm text-gray-400 line-through">
-              ${originalPrice.toFixed(2)}
+              {'\u20A6'}{originalPrice.toLocaleString()}
             </span>
           )}
         </div>
@@ -553,7 +553,7 @@ export default function FavoritesPage() {
                 
                 <div className="bg-white rounded-xl p-4 border border-gray-200">
                   <div className="text-2xl font-bold text-gray-900">
-                    ${stats.totalValue.toFixed(2)}
+                    {'\u20A6'}{stats.totalValue.toLocaleString()}
                   </div>
                   <div className="text-xs text-gray-500">Total Value</div>
                 </div>

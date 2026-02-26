@@ -312,7 +312,7 @@ function CustomerDashboardView() {
 
 // ─── Vendor Dashboard View ───
 
-function VendorDashboardView() {
+function VendorDashboardView({ profile }: { profile: any }) {
   const router = useRouter();
   const { dashboard, loading, error, fetchDashboard } = useVendorDashboard();
 
@@ -354,6 +354,41 @@ function VendorDashboardView() {
 
   return (
     <div className="flex-1 overflow-y-auto pb-24">
+      {/* Profile Card */}
+      <div className="bg-white px-4 pt-5 pb-5">
+        <div className="flex items-center gap-4">
+          {profile?.avatar && profile.avatar !== 'default-avatar.png' ? (
+            <img
+              src={profile.avatar}
+              alt={profile.name}
+              className="w-[60px] h-[60px] rounded-2xl object-cover ring-2 ring-gray-100 shadow-sm"
+            />
+          ) : (
+            <div className="w-[60px] h-[60px] bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-2xl flex items-center justify-center text-white text-xl font-bold shadow-sm ring-2 ring-yellow-200">
+              {profile?.name?.charAt(0).toUpperCase() || 'V'}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-gray-900 truncate">{profile?.name || 'Vendor'}</h2>
+              <button
+                onClick={() => router.push('/profile/edit')}
+                className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-all duration-200 shrink-0"
+                aria-label="Edit Profile"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 truncate">{profile?.email}</p>
+            {profile?.createdAt && (
+              <p className="text-[11px] text-gray-400 mt-1 font-medium">
+                Member since {new Date(profile.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Wallet Card */}
       <div className="px-4 mt-4">
         <div className="relative overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-5 text-white shadow-lg">
@@ -563,7 +598,7 @@ export default function AccountPage() {
         </button>
       </header>
 
-      {isVendor ? <VendorDashboardView /> : <CustomerDashboardView />}
+      {isVendor ? <VendorDashboardView profile={profile} /> : <CustomerDashboardView />}
 
       <BottomNav />
     </div>

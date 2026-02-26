@@ -21,9 +21,15 @@ import AddToCartButton from './AddToCartButton';
 interface ProductCardProps {
   /** Product data to display */
   product: Product;
-  
+
   /** Optional click handler for navigation */
   onClick?: (product: Product) => void;
+
+  /** Whether this product is in the user's wishlist */
+  isFavorite?: boolean;
+
+  /** Callback when the favorite button is toggled */
+  onToggleFavorite?: (productId: string) => void;
 }
 
 /**
@@ -38,18 +44,17 @@ const formatPrice = (price: number): string => {
   }).format(price);
 };
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
-  const [isFavorite, setIsFavorite] = useState(false);
+export const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, isFavorite: isFavoriteProp, onToggleFavorite }) => {
+  const [localFavorite, setLocalFavorite] = useState(false);
+  const isFavorite = isFavoriteProp ?? localFavorite;
 
-  /**
-   * Handle favorite button click
-   * TODO: Connect to wishlist API endpoint
-   */
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsFavorite(!isFavorite);
-    // TODO: Call wishlist API to add/remove from favorites
-    console.log('Toggle favorite for product:', product.id);
+    if (onToggleFavorite) {
+      onToggleFavorite(product.id);
+    } else {
+      setLocalFavorite(!localFavorite);
+    }
   };
 
   /**

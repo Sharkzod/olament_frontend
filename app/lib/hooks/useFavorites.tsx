@@ -20,7 +20,8 @@ export const useFavorites = () => {
       setIsLoading(true);
       setError(null);
       const data = await favoritesApi.getUserFavorites();
-      setFavorites(data.favorites || []);
+      // Backend returns { success, products, pagination }
+      setFavorites(data.products || []);
     } catch (err) {
       setError(err as Error);
       console.error('Failed to fetch favorites:', err);
@@ -32,7 +33,7 @@ export const useFavorites = () => {
   const addFavorite = useCallback(async (productId: string) => {
     try {
       await favoritesApi.addToFavorites(productId);
-      await fetchFavorites(); // Refresh the list
+      await fetchFavorites();
     } catch (err) {
       throw err;
     }
@@ -41,7 +42,7 @@ export const useFavorites = () => {
   const removeFavorite = useCallback(async (productId: string) => {
     try {
       await favoritesApi.removeFromFavorites(productId);
-      setFavorites(prev => prev.filter(fav => 
+      setFavorites(prev => prev.filter(fav =>
         fav._id !== productId && fav.id !== productId
       ));
     } catch (err) {
@@ -49,14 +50,26 @@ export const useFavorites = () => {
     }
   }, []);
 
+  // Toggle: check if in favorites, then add or remove
   const toggleFavorite = useCallback(async (productId: string) => {
+    const isCurrentlyFavorite = favorites.some(
+      fav => (fav._id || fav.id) === productId
+    );
+
     try {
-      await favoritesApi.toggleFavorite(productId);
-      await fetchFavorites(); // Refresh the list
+      if (isCurrentlyFavorite) {
+        await favoritesApi.removeFromFavorites(productId);
+        setFavorites(prev => prev.filter(fav =>
+          fav._id !== productId && fav.id !== productId
+        ));
+      } else {
+        await favoritesApi.addToFavorites(productId);
+        await fetchFavorites();
+      }
     } catch (err) {
       throw err;
     }
-  }, [fetchFavorites]);
+  }, [favorites, fetchFavorites]);
 
   const clearAllFavorites = useCallback(async () => {
     try {
@@ -70,23 +83,29 @@ export const useFavorites = () => {
   const checkIfFavorite = useCallback(async (productId: string) => {
     try {
       const response = await favoritesApi.checkIfFavorite(productId);
-      return response.isFavorite;
+      // Backend returns { success, inWishlist }
+      return response.inWishlist;
     } catch (err) {
       console.error('Failed to check favorite status:', err);
       return false;
     }
   }, []);
 
+  // Check locally if a product is in favorites (no API call)
+  const isFavorite = useCallback((productId: string) => {
+    return favorites.some(fav => (fav._id || fav.id) === productId);
+  }, [favorites]);
+
   // Get unique categories from favorites
   const getCategories = useCallback(() => {
     const categoryMap = new Map();
-    
+
     favorites.forEach(product => {
       const category = product.category;
       if (category) {
         const categoryId = category._id || category;
         const categoryName = category.name || category;
-        
+
         if (categoryMap.has(categoryId)) {
           categoryMap.get(categoryId).count++;
         } else {
@@ -98,14 +117,14 @@ export const useFavorites = () => {
         }
       }
     });
-    
+
     return Array.from(categoryMap.values());
   }, [favorites]);
 
   // Calculate total value of favorites
   const getTotalValue = useCallback(() => {
-    return favorites.reduce((sum, product) => 
-      sum + (product.discountPrice || product.price), 0
+    return favorites.reduce((sum, product) =>
+      sum + (product.discountPrice || product.price || 0), 0
     );
   }, [favorites]);
 
@@ -118,13 +137,14 @@ export const useFavorites = () => {
     favorites,
     isLoading,
     error,
-    fetchFavorites: fetchFavorites,
+    fetchFavorites,
     refetch: fetchFavorites,
     addFavorite,
     removeFavorite,
     toggleFavorite,
     clearAllFavorites,
     checkIfFavorite,
+    isFavorite,
     getCategories,
     getTotalValue,
     totalCount: favorites.length,

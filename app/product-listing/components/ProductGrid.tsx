@@ -20,18 +20,24 @@ import type { Product } from '../types/product';
 interface ProductGridProps {
   /** Array of products to display */
   products: Product[];
-  
+
   /** Loading state indicator */
   isLoading?: boolean;
-  
+
   /** Empty state message */
   emptyMessage?: string;
-  
+
   /** Optional click handler for product selection */
   onProductClick?: (product: Product) => void;
-  
+
   /** Additional CSS classes */
   className?: string;
+
+  /** Set of favorited product IDs */
+  favoriteIds?: Set<string>;
+
+  /** Callback when favorite is toggled */
+  onToggleFavorite?: (productId: string) => void;
 }
 
 /**
@@ -45,6 +51,8 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
   emptyMessage = DEFAULT_EMPTY_MESSAGE,
   onProductClick,
   className = '',
+  favoriteIds,
+  onToggleFavorite,
 }) => {
   // Don't show empty state while loading
   if (isLoading) {
@@ -96,6 +104,8 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
           key={product.id}
           product={product}
           onClick={onProductClick}
+          isFavorite={favoriteIds?.has(product.id)}
+          onToggleFavorite={onToggleFavorite}
         />
       ))}
     </div>
