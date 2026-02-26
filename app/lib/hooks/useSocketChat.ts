@@ -21,19 +21,19 @@ export const useSocketChat = () => {
     const token = localStorage.getItem('authToken') || localStorage.getItem('token');
     console.log('🔌 Initializing socket with token:', token ? 'Yes' : 'No');
     
-    // const socketInstance = io('https://olament-backend-2.onrender.com', {
-    //   withCredentials: true,
-    //   auth: {
-    //     token: token
-    //   }
-    // });
-
-     const socketInstance = io('http://localhost:5000', {
+    const socketInstance = io('https://olament-backend-2.onrender.com', {
       withCredentials: true,
       auth: {
         token: token
       }
     });
+
+    //  const socketInstance = io('http://localhost:5000', {
+    //   withCredentials: true,
+    //   auth: {
+    //     token: token
+    //   }
+    // });
 
 
     socketInstance.on('connect', () => {
