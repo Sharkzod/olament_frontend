@@ -5,13 +5,16 @@ import React, { useState, useCallback, useEffect, useMemo, useRef, Suspense } fr
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useChatMessages } from '@/app/lib/hooks/useChatMessages';
 import { useSocketChat } from '@/app/lib/hooks/useSocketChat';
-import { useChats } from '@/app/lib/hooks/useChats';
 import { useAuth } from '@/app/lib/hooks/useAuthApi';
+import { useOffers } from '@/app/lib/hooks/useOffers';
+import apiClient from '@/app/lib/api/apiClient';
 
 // Components
 import ChatHeader from './components/ChatHeader';
 import ChatWindow from './components/ChatWindow';
 import MessageInput from './components/MessageInput';
+import MakeOfferModal from './components/MakeOfferModal';
+import CounterOfferModal from './components/CounterOfferModal';
 import { ChatLoadingSkeleton } from './components/EmptyState';
 
 // Icons
@@ -52,6 +55,9 @@ function ChatPageContent() {
   const { user, isLoading: authLoading, isInitialized } = useAuth();
   const [isMobile, setIsMobile] = useState(false);
   const [prefilledMessage, setPrefilledMessage] = useState('');
+  const [showMakeOfferModal, setShowMakeOfferModal] = useState(false);
+  const [showCounterOfferModal, setShowCounterOfferModal] = useState(false);
+  const [counterOfferTarget, setCounterOfferTarget] = useState<{ offerId: string; price: number; quantity: number } | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const conversationId = searchParams.get('conversationId');
@@ -76,16 +82,34 @@ function ChatPageContent() {
     leaveConversation,
   } = useSocketChat();
 
-  // Fetch chat details
-  const shouldFetchChats = !!currentUserId && !!conversationId;
-  const { chats } = useChats({
-    params: { limit: 100 },
-    autoFetch: shouldFetchChats,
-  });
+  // Fetch the specific chat directly by ID
+  const [currentChat, setCurrentChat] = useState<any>(null);
+  const [chatLoading, setChatLoading] = useState(true);
 
-  const currentChat = useMemo(() => {
-    return chats.find((chat) => chat._id === conversationId);
-  }, [chats, conversationId]);
+  useEffect(() => {
+    if (!conversationId || !currentUserId) {
+      setChatLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setChatLoading(true);
+
+    apiClient.get(`/chats/${conversationId}`)
+      .then((res) => {
+        if (!cancelled && res.data?.success) {
+          setCurrentChat(res.data.data);
+        }
+      })
+      .catch((err) => {
+        console.error('Error fetching chat:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setChatLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [conversationId, currentUserId]);
 
   const participant = useMemo(() => {
     if (!currentUserId) return null;
@@ -124,6 +148,18 @@ function ChatPageContent() {
     autoFetch: !!conversationId && !!currentUserId,
   });
 
+  // Offers hook
+  const {
+    makeOffer,
+    respond: respondToOffer,
+    counter: counterOffer,
+    withdraw: withdrawOffer,
+    fetchOffers,
+    updateOfferStatus,
+  } = useOffers(conversationId || '', {
+    autoFetch: !!conversationId && !!currentUserId,
+  });
+
   // Setup socket listeners
   useEffect(() => {
     if (!socket || !conversationId || !currentUserId) return;
@@ -148,9 +184,17 @@ function ChatPageContent() {
       }
     };
 
+    const handleOfferUpdate = (data: any) => {
+      if (data.chatId === conversationId) {
+        // Refresh messages to get updated offer statuses
+        fetchMessages();
+      }
+    };
+
     socket.on('connect', handleConnect);
     socket.on('newMessage', handleNewMessage);
     socket.on('typing', handleTyping);
+    socket.on('offerUpdate', handleOfferUpdate);
 
     if (isConnected) {
       joinConversation(conversationId);
@@ -160,11 +204,13 @@ function ChatPageContent() {
       socket.off('connect', handleConnect);
       socket.off('newMessage', handleNewMessage);
       socket.off('typing', handleTyping);
-      
+      socket.off('offerUpdate', handleOfferUpdate);
+
       if (conversationId) {
         leaveConversation(conversationId);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, isConnected, conversationId, currentUserId, receiveMessage, setIsTyping, joinConversation, leaveConversation]);
 
   // Handle typing
@@ -242,6 +288,52 @@ function ChatPageContent() {
     }
   }, [messages]);
 
+  // Offer handlers
+  const handleMakeOffer = useCallback(async (price: number, quantity: number, message?: string) => {
+    await makeOffer(price, quantity, message);
+    await fetchMessages();
+  }, [makeOffer, fetchMessages]);
+
+  const handleAcceptOffer = useCallback(async (offerId: string) => {
+    await respondToOffer(offerId, 'accept');
+    await fetchMessages();
+  }, [respondToOffer, fetchMessages]);
+
+  const handleDeclineOffer = useCallback(async (offerId: string) => {
+    await respondToOffer(offerId, 'decline');
+    await fetchMessages();
+  }, [respondToOffer, fetchMessages]);
+
+  const handleCounterOffer = useCallback((offerId: string) => {
+    // Find the offer data from messages to get price/quantity
+    const offerMsg = messages.find(m => m.offerData?.offerId === offerId);
+    const price = offerMsg?.offerData?.price || 0;
+    const quantity = offerMsg?.offerData?.quantity || 1;
+    setCounterOfferTarget({ offerId, price, quantity });
+    setShowCounterOfferModal(true);
+  }, [messages]);
+
+  const handleCounterOfferSubmit = useCallback(async (offerId: string, price: number, quantity: number, message?: string) => {
+    await counterOffer(offerId, price, quantity, message);
+    await fetchMessages();
+  }, [counterOffer, fetchMessages]);
+
+  const handleWithdrawOffer = useCallback(async (offerId: string) => {
+    await withdrawOffer(offerId);
+    await fetchMessages();
+  }, [withdrawOffer, fetchMessages]);
+
+  // Product info from current chat for the offer modal
+  const chatProduct = useMemo(() => {
+    if (!currentChat?.product) return null;
+    const p = currentChat.product;
+    return {
+      name: p.name,
+      image: p.images?.[0]?.url,
+      price: p.price,
+    };
+  }, [currentChat]);
+
   const transformedMessages = useMemo(() => {
     return messages.map(message => {
       return {
@@ -252,7 +344,6 @@ function ChatPageContent() {
     });
   }, [messages, conversationId]);
 
-  // Loading states
   if (!conversationId) {
     return (
       <div className="h-screen bg-gray-50 flex flex-col items-center justify-center">
@@ -311,6 +402,19 @@ function ChatPageContent() {
     );
   }
 
+  if (chatLoading) {
+    return (
+      <div className="h-screen bg-gray-50 flex flex-col">
+        <header className="h-14 bg-white border-b flex items-center px-4">
+          <button onClick={() => router.push('/orders')} className="p-2">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+        </header>
+        <ChatLoadingSkeleton />
+      </div>
+    );
+  }
+
   if (!participant) {
     return (
       <div className="h-screen bg-gray-50 flex flex-col items-center justify-center">
@@ -341,6 +445,10 @@ function ChatPageContent() {
           participant={participant}
           currentUserId={currentUserId}
           isTyping={isTyping}
+          onAcceptOffer={handleAcceptOffer}
+          onDeclineOffer={handleDeclineOffer}
+          onCounterOffer={handleCounterOffer}
+          onWithdrawOffer={handleWithdrawOffer}
         />
       </div>
 
@@ -351,8 +459,33 @@ function ChatPageContent() {
           placeholder="Write a Message"
           initialMessage={prefilledMessage}
           onTyping={handleTyping}
+          onMakeOffer={() => setShowMakeOfferModal(true)}
         />
       </div>
+
+      {/* Offer Modals */}
+      <MakeOfferModal
+        isOpen={showMakeOfferModal}
+        onClose={() => setShowMakeOfferModal(false)}
+        onSubmit={handleMakeOffer}
+        productName={chatProduct?.name}
+        productImage={chatProduct?.image}
+        listedPrice={chatProduct?.price}
+      />
+
+      {counterOfferTarget && (
+        <CounterOfferModal
+          isOpen={showCounterOfferModal}
+          onClose={() => {
+            setShowCounterOfferModal(false);
+            setCounterOfferTarget(null);
+          }}
+          onSubmit={handleCounterOfferSubmit}
+          offerId={counterOfferTarget.offerId}
+          originalPrice={counterOfferTarget.price}
+          originalQuantity={counterOfferTarget.quantity}
+        />
+      )}
     </div>
   );
 }

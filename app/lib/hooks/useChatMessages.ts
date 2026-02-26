@@ -13,9 +13,16 @@ interface Message {
   content: string;
   timestamp: string;
   status: 'sent' | 'delivered' | 'read';
-  type: 'text' | 'image' | 'file';
+  type: 'text' | 'image' | 'file' | 'offer';
   createdAt?: string;
   readBy?: string[];
+  offerData?: {
+    offerId: string;
+    price: number;
+    quantity: number;
+    status: string;
+    initiatorName: string;
+  };
 }
 
 interface UseChatMessagesOptions {
@@ -113,8 +120,9 @@ export const useChatMessages = (
           type: msg.messageType || msg.type || 'text',
           createdAt: msg.createdAt,
           readBy: msg.readBy || [],
+          offerData: msg.offerData || undefined,
         };
-        
+
         return normalized;
       });
       
@@ -174,6 +182,7 @@ export const useChatMessages = (
           type: newMessage.messageType || newMessage.type || 'text',
           createdAt: newMessage.createdAt,
           readBy: newMessage.readBy || [],
+          offerData: newMessage.offerData || undefined,
         };
         
         // Optimistically add message to UI if not already there
@@ -219,6 +228,7 @@ export const useChatMessages = (
       type: message.messageType || message.type || 'text',
       createdAt: message.createdAt,
       readBy: message.readBy || [],
+      offerData: message.offerData || undefined,
     };
     
     setMessages((prev) => {

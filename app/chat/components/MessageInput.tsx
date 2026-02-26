@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Loader2 } from 'lucide-react';
+import { Send, Loader2, Tag } from 'lucide-react';
 
 interface MessageInputProps {
   onSendMessage: (message: string) => void;
@@ -9,6 +9,7 @@ interface MessageInputProps {
   placeholder?: string;
   initialMessage?: string;
   onTyping?: () => void;
+  onMakeOffer?: () => void;
 }
 
 const MessageInput: React.FC<MessageInputProps> = ({
@@ -17,6 +18,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   placeholder = 'Type a message...',
   initialMessage = '',
   onTyping,
+  onMakeOffer,
 }) => {
   const [value, setValue] = useState(initialMessage);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -58,6 +60,16 @@ const MessageInput: React.FC<MessageInputProps> = ({
   return (
     <form onSubmit={handleSubmit} className="p-4">
       <div className="flex items-center gap-3">
+        {onMakeOffer && (
+          <button
+            type="button"
+            onClick={onMakeOffer}
+            className="p-3 text-yellow-600 hover:bg-yellow-50 rounded-xl transition-colors flex-shrink-0"
+            title="Make an offer"
+          >
+            <Tag className="h-5 w-5" />
+          </button>
+        )}
         <input
           ref={inputRef}
           type="text"

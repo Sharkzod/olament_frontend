@@ -6,6 +6,7 @@
 
 import React from "react";
 import { Message, Participant } from "../types/chat";
+import OfferCard from "./OfferCard";
 
 interface MessageBubbleProps {
   message: Message;
@@ -14,6 +15,11 @@ interface MessageBubbleProps {
   participant?: Participant;
   isOutgoing?: boolean;
   isConsecutive?: boolean;
+  currentUserId?: string;
+  onAcceptOffer?: (offerId: string) => Promise<void>;
+  onDeclineOffer?: (offerId: string) => Promise<void>;
+  onCounterOffer?: (offerId: string) => void;
+  onWithdrawOffer?: (offerId: string) => Promise<void>;
 }
 
 const formatTime = (date: Date): string => {
@@ -98,6 +104,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   avatar,
   isOutgoing: propIsOutgoing,
   isConsecutive = false,
+  currentUserId,
+  onAcceptOffer,
+  onDeclineOffer,
+  onCounterOffer,
+  onWithdrawOffer,
 }) => {
   // Determine if message is outgoing based on prop or message sender
   const isOutgoing = propIsOutgoing ?? message.senderId === "user1";
@@ -144,7 +155,18 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           }`}
         >
           {/* Message content - Wraps properly with overflow hidden */}
-          {message.type === "text" ? (
+          {message.type === "offer" && message.offerData ? (
+            <OfferCard
+              offerData={message.offerData}
+              isOutgoing={isOutgoing}
+              currentUserId={currentUserId || ''}
+              senderId={message.senderId}
+              onAccept={onAcceptOffer}
+              onDecline={onDeclineOffer}
+              onCounter={onCounterOffer}
+              onWithdraw={onWithdrawOffer}
+            />
+          ) : message.type === "text" ? (
             <p
               className="text-[15px] leading-[1.5] text-gray-900 font-normal break-word overflow-wrap-break-word"
               style={{ wordBreak: "break-word", overflowWrap: "break-word" }}

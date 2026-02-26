@@ -49,7 +49,7 @@ const BottomNav = ({
     } else if (pathname?.startsWith('/vendor') || pathname?.startsWith('/selling')) {
       setActiveRoute('selling');
     } else if (pathname?.startsWith('/profile')) {
-      setActiveRoute('profile');
+      setActiveRoute('account');
     } else {
       setActiveRoute('home');
     }
@@ -62,7 +62,7 @@ const BottomNav = ({
     { id: 'orders', label: 'Orders', icon: ShoppingBag },
     { id: 'favorites', label: 'Wishlist', icon: Heart },
     // { id: 'selling', label: 'Selling', icon: Tag },
-    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'account', label: 'Account', icon: User },
   ];
 
   const handleNavClick = useCallback((routeId: string) => {
@@ -86,7 +86,7 @@ const BottomNav = ({
       case 'chat':
         router.push('/chat');
         break;
-      case 'profile':
+      case 'account':
         router.push('/profile');
         break;
       case 'selling':

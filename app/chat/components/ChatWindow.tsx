@@ -13,6 +13,10 @@ interface ChatWindowProps {
   participant: Participant;
   currentUserId: string;
   isTyping?: boolean;
+  onAcceptOffer?: (offerId: string) => Promise<void>;
+  onDeclineOffer?: (offerId: string) => Promise<void>;
+  onCounterOffer?: (offerId: string) => void;
+  onWithdrawOffer?: (offerId: string) => Promise<void>;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -20,6 +24,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   participant,
   currentUserId,
   isTyping = false,
+  onAcceptOffer,
+  onDeclineOffer,
+  onCounterOffer,
+  onWithdrawOffer,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -75,6 +83,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               participant={participant}
               showAvatar={showAvatar && !isOutgoing}
               isConsecutive={isConsecutive}
+              currentUserId={currentUserId}
+              onAcceptOffer={onAcceptOffer}
+              onDeclineOffer={onDeclineOffer}
+              onCounterOffer={onCounterOffer}
+              onWithdrawOffer={onWithdrawOffer}
             />
           );
         })

@@ -23,13 +23,14 @@ export interface Message {
   content: string;
   timestamp: Date;
   status: 'sent' | 'delivered' | 'read';
-  type: 'text' | 'image' | 'file';
-  // TODO: Add attachment field when API supports file uploads
-  // attachment?: {
-  //   url: string;
-  //   name: string;
-  //   type: string;
-  // };
+  type: 'text' | 'image' | 'file' | 'offer';
+  offerData?: {
+    offerId: string;
+    price: number;
+    quantity: number;
+    status: string;
+    initiatorName: string;
+  };
 }
 
 /**

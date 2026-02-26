@@ -67,34 +67,30 @@ export function useAuth(): AuthHookReturn {
     }
   }, []);
 
-  // Initialize auth on mount - with improved error handling and duplicate prevention
+  // Initialize auth on mount
   useEffect(() => {
-    // Prevent running in SSR or if already initializing
-    if (typeof window === 'undefined' || initializingRef.current) {
-      return;
-    }
+    if (typeof window === 'undefined') return;
+
+    let cancelled = false;
+    mountedRef.current = true;
 
     const initAuth = async () => {
-      initializingRef.current = true;
       setIsLoading(true);
-      
+
       try {
         console.log('🔄 useAuth: Starting initialization...');
-        
-        // Check for existing valid token
+
         const validUser = await validateExistingToken();
-        
-        // Only update state if component is still mounted
-        if (!mountedRef.current) return;
-        
+
+        if (cancelled) return;
+
         if (validUser) {
           console.log('✅ useAuth: Setting user from validated token');
           setUser(validUser);
         } else {
           console.log('🚫 useAuth: No valid token/user found');
           setUser(null);
-          
-          // Clear potentially invalid tokens
+
           const hadToken = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
           if (hadToken) {
             console.log('🧹 useAuth: Clearing invalid/stale tokens');
@@ -104,30 +100,28 @@ export function useAuth(): AuthHookReturn {
         }
       } catch (error: any) {
         console.error('🔥 useAuth: Auth initialization error:', error);
-        if (mountedRef.current) {
+        if (!cancelled) {
           setUser(null);
         }
       } finally {
-        if (mountedRef.current) {
+        if (!cancelled) {
           console.log('🏁 useAuth: Initialization complete');
           setIsInitialized(true);
           setIsLoading(false);
         }
-        initializingRef.current = false;
       }
     };
 
-    mountedRef.current = true;
     initAuth();
-    
+
     // Set up token check on storage changes (for multiple tabs)
     const handleStorageChange = async (e: StorageEvent) => {
       if (e.key === 'authToken' || e.key === 'refreshToken') {
         console.log('🔄 useAuth: Token storage changed, revalidating...');
         const validUser = await validateExistingToken();
-        
-        if (!mountedRef.current) return;
-        
+
+        if (cancelled) return;
+
         if (validUser && !user) {
           setUser(validUser);
         } else if (!validUser && user) {
@@ -135,10 +129,11 @@ export function useAuth(): AuthHookReturn {
         }
       }
     };
-    
+
     window.addEventListener('storage', handleStorageChange);
-    
+
     return () => {
+      cancelled = true;
       mountedRef.current = false;
       window.removeEventListener('storage', handleStorageChange);
     };
