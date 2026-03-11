@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { walletApi } from '../../../lib/api/walletApi';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
@@ -46,6 +46,7 @@ export default function FundCallbackPage() {
   }, [searchParams]);
 
   return (
+     <Suspense fallback={<div>Processing...</div>}>
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-lg p-8 max-w-sm w-full text-center">
         {status === 'verifying' && (
@@ -98,5 +99,6 @@ export default function FundCallbackPage() {
         )}
       </div>
     </div>
+    </Suspense>
   );
 }
