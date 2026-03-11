@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useProfile } from '../lib/hooks/useProfile';
 import { useCustomerDashboard, useVendorDashboard } from '../lib/hooks/useDashboard';
+import { walletApi } from '../lib/api/walletApi';
 import {
   AlertCircle,
   Loader2,
@@ -27,8 +28,122 @@ import {
   TrendingUp,
   Box,
   RefreshCw,
+  X,
 } from 'lucide-react';
 import BottomNav from '../components/Sidebar';
+
+// ─── Fund Wallet Modal ───
+
+function FundWalletModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [amount, setAmount] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const quickAmounts = [1000, 2000, 5000, 10000, 20000, 50000];
+
+  const handleFund = async () => {
+    const numAmount = parseFloat(amount);
+    if (!numAmount || numAmount < 100) {
+      setError('Minimum funding amount is \u20A6100');
+      return;
+    }
+    if (numAmount > 10000000) {
+      setError('Maximum funding amount is \u20A610,000,000');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    const result = await walletApi.initializeFunding(numAmount);
+
+    if (result.success && result.data?.authorizationUrl) {
+      window.location.href = result.data.authorizationUrl;
+    } else {
+      setError(result.error || 'Failed to initialize funding');
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 pb-8 animate-in slide-in-from-bottom duration-300">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-bold text-gray-900">Fund Wallet</h3>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-600 mb-2">Amount (NGN)</label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-lg">{'\u20A6'}</span>
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => { setAmount(e.target.value); setError(''); }}
+              placeholder="0.00"
+              min="100"
+              className="w-full pl-10 pr-4 py-3.5 border-2 border-gray-200 rounded-2xl text-lg font-semibold text-gray-900 focus:border-yellow-400 focus:outline-none transition-colors placeholder:text-gray-300"
+              autoFocus
+            />
+          </div>
+        </div>
+
+        <div className="mb-5">
+          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Quick Select</p>
+          <div className="grid grid-cols-3 gap-2">
+            {quickAmounts.map((qa) => (
+              <button
+                key={qa}
+                onClick={() => { setAmount(String(qa)); setError(''); }}
+                className={`py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                  amount === String(qa)
+                    ? 'bg-yellow-400 text-gray-900 shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {'\u20A6'}{qa.toLocaleString()}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
+        <button
+          onClick={handleFund}
+          disabled={loading || !amount}
+          className="w-full py-3.5 bg-yellow-400 hover:bg-yellow-300 disabled:bg-gray-200 disabled:text-gray-400 text-gray-900 rounded-2xl text-sm font-bold transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow-md disabled:shadow-none"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4" />
+              Fund {amount ? `\u20A6${parseFloat(amount).toLocaleString()}` : 'Wallet'}
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ─── Stat Card ───
 
@@ -144,6 +259,7 @@ function QuickActionBtn({ icon: Icon, label, iconBg, onClick }: {
 function CustomerDashboardView() {
   const router = useRouter();
   const { dashboard, loading, error, fetchDashboard } = useCustomerDashboard();
+  const [showFundModal, setShowFundModal] = useState(false);
 
   if (loading && !dashboard) {
     return (
@@ -224,9 +340,18 @@ function CustomerDashboardView() {
           <div className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full bg-yellow-400/5" />
 
           <div className="relative">
-            <div className="flex items-center gap-2 mb-1">
-              <Wallet className="w-4 h-4 text-yellow-400" />
-              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Wallet Balance</span>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-yellow-400" />
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Wallet Balance</span>
+              </div>
+              <button
+                onClick={() => setShowFundModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-400 hover:bg-yellow-300 text-gray-900 rounded-xl text-xs font-bold transition-all duration-200 shadow-sm hover:shadow-md"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Fund
+              </button>
             </div>
             <p className="text-3xl font-bold tracking-tight">{'\u20A6'}{wallet.balance.toLocaleString()}</p>
             <div className="flex items-center gap-3 mt-3">
@@ -242,6 +367,8 @@ function CustomerDashboardView() {
           </div>
         </div>
       </div>
+
+      <FundWalletModal isOpen={showFundModal} onClose={() => setShowFundModal(false)} />
 
       {/* Order Summary Grid */}
       <div className="px-4 mt-5">
@@ -315,6 +442,7 @@ function CustomerDashboardView() {
 function VendorDashboardView({ profile }: { profile: any }) {
   const router = useRouter();
   const { dashboard, loading, error, fetchDashboard } = useVendorDashboard();
+  const [showFundModal, setShowFundModal] = useState(false);
 
   if (loading && !dashboard) {
     return (
@@ -397,9 +525,18 @@ function VendorDashboardView({ profile }: { profile: any }) {
           <div className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full bg-green-400/5" />
 
           <div className="relative">
-            <div className="flex items-center gap-2 mb-1">
-              <Wallet className="w-4 h-4 text-green-400" />
-              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Vendor Wallet</span>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-green-400" />
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Vendor Wallet</span>
+              </div>
+              <button
+                onClick={() => setShowFundModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-400 hover:bg-green-300 text-gray-900 rounded-xl text-xs font-bold transition-all duration-200 shadow-sm hover:shadow-md"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Fund
+              </button>
             </div>
             <p className="text-3xl font-bold tracking-tight">{'\u20A6'}{stats.wallet.balance.toLocaleString()}</p>
             <div className="flex items-center gap-2 mt-3">
@@ -419,6 +556,8 @@ function VendorDashboardView({ profile }: { profile: any }) {
           </div>
         </div>
       </div>
+
+      <FundWalletModal isOpen={showFundModal} onClose={() => setShowFundModal(false)} />
 
       {/* Order Stats Grid */}
       <div className="px-4 mt-5">
