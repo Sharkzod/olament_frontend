@@ -2,16 +2,13 @@
 import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams  } from 'next/navigation';
 import { 
-  MapPin, 
-  Search, 
-  Store, 
-  ChevronRight, 
-  Heart, 
-  Filter, 
+  MapPin,
+  Search,
+  Store,
+  ChevronRight,
   SlidersHorizontal,
-  Star, 
-  Package, 
-  ShoppingBag,
+  Star,
+  Package,
   Loader2,
   X,
   ArrowLeft,
@@ -265,98 +262,63 @@ function ShopListPageContent() {
   const renderShopCard = (shop: ShopProfile) => {
     const isOpen = shop.isActive && shop.status !== 'closed' && shop.status !== 'busy';
 
-    
+
     return (
-      <div key={shop._id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+      <div
+        key={shop._id}
+        onClick={() => router.push(`/shops/${shop._id}`)}
+        className="group bg-white rounded-lg border border-gray-200 overflow-hidden hover:border-gray-300 transition-colors cursor-pointer"
+      >
         <div className="relative">
-          <div className="h-40 bg-gray-200">
+          <div className="h-40 bg-gray-100">
             {shop.imageUrl || shop.logo ? (
-              <img 
-                src={shop.imageUrl || shop.logo} 
-                alt={shop.name} 
+              <img
+                src={shop.imageUrl || shop.logo}
+                alt={shop.name}
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
-                <Store className="h-12 w-12 text-gray-400" />
+              <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                <Store className="h-10 w-10 text-gray-300" />
               </div>
             )}
           </div>
-          
+
           {/* Status badge */}
-          <div className={`absolute top-2 right-2 text-[10px] font-semibold px-2 py-1 rounded-full ${
-            isOpen ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+          <div className={`absolute top-2.5 right-2.5 text-[10px] font-medium tracking-wide px-2 py-0.5 rounded-full border ${
+            isOpen ? 'bg-white/90 border-gray-200 text-gray-700' : 'bg-white/90 border-gray-200 text-gray-400'
           }`}>
-            {isOpen ? 'OPEN' : 'CLOSED'}
+            {isOpen ? 'Open' : 'Closed'}
           </div>
-          
-          {/* Favorite button */}
-          <button className="absolute top-2 left-2 text-gray-400 hover:text-red-500 transition-colors bg-white rounded-full p-1.5 shadow-md">
-            <Heart className="h-4 w-4" />
-          </button>
-          
-          {/* Verified badge */}
-          {shop.isVerified && (
-            <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full">
-              <ShieldCheck className="h-3 w-3 text-green-600" />
-              <span className="text-xs font-medium text-green-700">Verified</span>
-            </div>
-          )}
         </div>
-        
+
         <div className="p-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <h3 className="font-bold text-gray-900 line-clamp-1">{shop.name}</h3>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-sm text-gray-600">{shop.category}</span>
-              </div>
-            </div>
-          </div>
-          
-          {/* Rating */}
-          <div className="flex items-center gap-1 mt-2">
-            <Star className="h-4 w-4 text-yellow-400 fill-current" />
-            <span className="text-sm font-semibold text-black">
-              {shop.rating?.toFixed(1) || 'N/A'}
-            </span>
-            <span className="text-xs text-gray-500">
-              ({shop.totalReviews || 0})
-            </span>
-          </div>
-          
-          {/* Location */}
-          <div className="flex items-center gap-1 mt-2 text-gray-600">
-            <MapPin className="h-3 w-3 flex-shrink-0" />
-            <span className="text-xs truncate">
-              {shop.marketId?.city || shop.address?.split(',')[0] || selectedState}
-            </span>
-          </div>
-          
-          {/* Stats */}
-          <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
-            <div className="flex items-center gap-1">
-              <Package className="h-3 w-3" />
-              <span>{shop.productsCount || 0} products</span>
-            </div>
-            {shop.deliveryFee !== undefined && (
-              <span className="font-medium">
-                ₦{shop.deliveryFee?.toLocaleString() || '0'} delivery
-              </span>
+          <div className="flex items-center gap-1.5">
+            <h3 className="font-semibold text-gray-900 line-clamp-1">{shop.name}</h3>
+            {shop.isVerified && (
+              <ShieldCheck className="h-4 w-4 text-gray-400 flex-shrink-0" />
             )}
           </div>
-          
-          {/* Action buttons */}
-          <div className="flex gap-2 mt-4">
-            <button 
-              onClick={() => router.push(`/shops/${shop._id}`)}
-              className="flex-1 bg-gray-900 text-white text-sm font-semibold py-2 rounded-lg hover:bg-gray-800 transition-colors"
-            >
-              Visit Shop
-            </button>
-            <button className="px-3 bg-white border border-gray-300 text-gray-900 text-sm font-semibold py-2 rounded-lg hover:bg-gray-50 transition-colors">
-              <ShoppingBag className="h-4 w-4" />
-            </button>
+          <p className="text-sm text-gray-500 mt-0.5">{shop.category}</p>
+
+          {/* Meta */}
+          <div className="flex items-center gap-3 mt-3 text-xs text-gray-500">
+            <span className="flex items-center gap-1">
+              <Star className="h-3.5 w-3.5 text-gray-400 fill-current" />
+              <span className="text-gray-700 font-medium">{shop.rating?.toFixed(1) || 'N/A'}</span>
+            </span>
+            <span className="flex items-center gap-1 truncate">
+              <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+              <span className="truncate">{shop.marketId?.city || shop.address?.split(',')[0] || selectedState}</span>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
+            <Package className="h-3.5 w-3.5" />
+            <span>{shop.productsCount || 0} products</span>
+            {shop.deliveryFee !== undefined && (
+              <span className="ml-auto text-gray-500">₦{shop.deliveryFee?.toLocaleString() || '0'} delivery</span>
+            )}
           </div>
         </div>
       </div>
@@ -368,113 +330,63 @@ function ShopListPageContent() {
     const isOpen = shop.isActive && shop.status !== 'closed';
     
     return (
-      <div key={shop._id} className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-sm transition-shadow">
+      <div
+        key={shop._id}
+        onClick={() => router.push(`/shops/${shop._id}`)}
+        className="bg-white rounded-lg border border-gray-200 p-4 hover:border-gray-300 transition-colors cursor-pointer"
+      >
         <div className="flex gap-4">
-          <div className="relative">
-            <div className="w-24 h-24 rounded-lg overflow-hidden bg-gray-200">
+          <div className="relative flex-shrink-0">
+            <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
               {shop.imageUrl || shop.logo ? (
-                <img 
-                  src={shop.imageUrl || shop.logo} 
-                  alt={shop.name} 
+                <img
+                  src={shop.imageUrl || shop.logo}
+                  alt={shop.name}
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
-                  <Store className="h-8 w-8 text-gray-400" />
+                <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                  <Store className="h-7 w-7 text-gray-300" />
                 </div>
               )}
             </div>
-            {!isOpen && (
-              <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
-                <span className="text-white text-xs font-semibold bg-red-500 px-2 py-1 rounded">CLOSED</span>
-              </div>
-            )}
           </div>
-          
-          <div className="flex-1">
-            <div className="flex justify-between items-start">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-gray-900">{shop.name}</h3>
-                  {shop.isVerified && (
-                    <ShieldCheck className="h-4 w-4 text-green-600" />
-                  )}
-                </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-sm text-gray-600">{shop.category}</span>
-                </div>
-              </div>
-              <button className="text-gray-400 hover:text-red-500 transition-colors">
-                <Heart className="h-5 w-5" />
-              </button>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <h3 className="font-semibold text-gray-900 truncate">{shop.name}</h3>
+              {shop.isVerified && (
+                <ShieldCheck className="h-4 w-4 text-gray-400 flex-shrink-0" />
+              )}
+              <span className={`ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                isOpen ? 'border-gray-200 text-gray-600' : 'border-gray-200 text-gray-400'
+              }`}>
+                {isOpen ? 'Open' : 'Closed'}
+              </span>
             </div>
-            
-            <div className="flex items-center gap-4 mt-3">
-              <div className="flex items-center gap-1">
-                <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                <span className="text-sm font-semibold text-black">
-                  {shop.rating?.toFixed(1) || 'N/A'}
-                </span>
-                <span className="text-xs text-gray-500">
-                  ({shop.totalReviews || 0})
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <MapPin className="h-4 w-4 text-gray-500" />
-                <span className="text-xs text-gray-600">
-                  {shop.marketId?.city || shop.address?.split(',')[0] || selectedState}
-                </span>
-              </div>
-            </div>
-            
-            <div className="mt-2 text-xs text-gray-500 flex items-center gap-2">
-              <Package className="h-3 w-3" />
-              <span>{shop.productsCount || 0} products</span>
+            <p className="text-sm text-gray-500 mt-0.5">{shop.category}</p>
+
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2.5 text-xs text-gray-500">
+              <span className="flex items-center gap-1">
+                <Star className="h-3.5 w-3.5 text-gray-400 fill-current" />
+                <span className="text-gray-700 font-medium">{shop.rating?.toFixed(1) || 'N/A'}</span>
+                <span className="text-gray-400">({shop.totalReviews || 0})</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" />
+                {shop.marketId?.city || shop.address?.split(',')[0] || selectedState}
+              </span>
+              <span className="flex items-center gap-1">
+                <Package className="h-3.5 w-3.5" />
+                {shop.productsCount || 0} products
+              </span>
               {shop.deliveryFee !== undefined && (
-                <>
-                  <span>•</span>
-                  <span>Delivery: ₦{shop.deliveryFee?.toLocaleString() || '0'}</span>
-                </>
+                <span>Delivery ₦{shop.deliveryFee?.toLocaleString() || '0'}</span>
               )}
-              {shop.minimumOrder !== undefined && shop.minimumOrder > 0 && (
-                <>
-                  <span>•</span>
-                  <span>Min: ₦{shop.minimumOrder?.toLocaleString() || '0'}</span>
-                </>
-              )}
-            </div>
-            
-            {shop.tags && shop.tags.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {shop.tags.slice(0, 3).map(tag => (
-                  <span 
-                    key={tag} 
-                    className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"
-                  >
-                    {tag}
-                  </span>
-                ))}
-                {shop.tags.length > 3 && (
-                  <span className="text-xs text-gray-400 px-1">
-                    +{shop.tags.length - 3} more
-                  </span>
-                )}
-              </div>
-            )}
-            
-            <div className="flex gap-2 mt-4">
-              <button 
-                onClick={() => router.push(`/shops/${shop._id}`)}
-                className="flex-1 bg-gray-900 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-800 transition-colors"
-              >
-                Visit Shop
-              </button>
-              <button className="px-4 bg-white border border-gray-300 text-gray-900 text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1">
-                <ShoppingBag className="h-4 w-4" />
-                Shop
-              </button>
             </div>
           </div>
+
+          <ChevronRight className="h-5 w-5 text-gray-300 self-center flex-shrink-0" />
         </div>
       </div>
     );
@@ -484,51 +396,52 @@ function ShopListPageContent() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
-        <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center justify-between px-4 py-3.5 max-w-5xl mx-auto">
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={() => router.back()}
-              className="p-2 hover:bg-gray-100 rounded-lg"
+              className="p-2 -ml-2 hover:bg-gray-100 rounded-lg"
             >
               <ArrowLeft className="h-5 w-5 text-gray-600" />
             </button>
             <div>
-              <h1 className="text-lg font-bold text-black">{getHeaderTitle()}</h1>
-              <p className="text-xs text-gray-600">{getHeaderSubtitle()}</p>
+              <h1 className="text-base font-semibold text-gray-900 tracking-tight">{getHeaderTitle()}</h1>
+              <p className="text-xs text-gray-500">{getHeaderSubtitle()}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setShowFilters(!showFilters)}
-              className="p-2 hover:bg-gray-100 rounded-lg"
-            >
-              <Filter className="h-5 w-5 text-gray-600" />
-            </button>
-          </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              showFilters ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            <span className="hidden sm:inline">Filters</span>
+          </button>
         </div>
-        
+
         {/* Market Filter Banner */}
         {currentMarket && (
-          <div className="bg-blue-50 border-t border-blue-100 px-4 py-3">
-            <div className="flex items-center justify-between">
+          <div className="border-t border-gray-100 bg-gray-50 px-4 py-3">
+            <div className="flex items-center justify-between max-w-5xl mx-auto">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Building className="h-5 w-5 text-blue-600" />
+                <div className="p-2 bg-white border border-gray-200 rounded-lg">
+                  <Building className="h-4 w-4 text-gray-500" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-blue-900">
+                  <h3 className="text-sm font-medium text-gray-900">
                     Showing shops in {currentMarket.name}
                   </h3>
-                  <p className="text-xs text-blue-700">
+                  <p className="text-xs text-gray-500">
                     Only shops from this market are shown
                   </p>
                 </div>
               </div>
               <button
                 onClick={clearMarketFilter}
-                className="text-xs text-blue-600 hover:text-blue-800 font-medium px-3 py-1.5 hover:bg-blue-100 rounded-lg transition-colors"
+                className="text-xs text-gray-600 hover:text-gray-900 font-medium px-3 py-1.5 hover:bg-gray-100 rounded-lg transition-colors"
               >
-                Show All Shops
+                Show all
               </button>
             </div>
           </div>
@@ -536,16 +449,16 @@ function ShopListPageContent() {
       </header>
 
 
-      <main className="px-4 pb-20">
+      <main className="px-4 pb-16 max-w-5xl mx-auto">
         {/* Search Bar */}
         <div className="sticky top-16 z-20 bg-gray-50 pt-4 pb-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-gray-400" />
             <input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search shops by name, category, or tags..."
-              className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Search shops by name or category"
+              className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-3 text-sm placeholder:text-gray-400 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
             />
             {searchQuery && (
               <button
@@ -560,14 +473,14 @@ function ShopListPageContent() {
 
         {/* Filters Panel */}
         {showFilters && (
-          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 shadow-sm">
+          <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-gray-900">Filters</h2>
+              <h2 className="font-semibold text-gray-900">Filters</h2>
               <button
                 onClick={resetFilters}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                className="text-sm text-gray-500 hover:text-gray-900 font-medium"
               >
-                Reset All
+                Reset all
               </button>
             </div>
             
@@ -582,10 +495,10 @@ function ShopListPageContent() {
                     <button
                       key={state}
                       onClick={() => setSelectedState(state)}
-                      className={`py-2 px-3 rounded-lg text-sm font-medium ${
+                      className={`py-2 px-3 rounded-lg text-sm font-medium border transition-colors ${
                         selectedState === state
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          ? 'bg-gray-900 text-white border-gray-900'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
                       }`}
                     >
                       {state}
@@ -604,10 +517,10 @@ function ShopListPageContent() {
                     <button
                       key={city}
                       onClick={() => setSelectedCity(city)}
-                      className={`py-2 px-3 rounded-lg text-sm font-medium ${
+                      className={`py-2 px-3 rounded-lg text-sm font-medium border transition-colors ${
                         selectedCity === city
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          ? 'bg-gray-900 text-white border-gray-900'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
                       }`}
                     >
                       {city === 'all' ? 'All Cities' : city}
@@ -624,7 +537,7 @@ function ShopListPageContent() {
                 <select
                   value={selectedCategory}
                   onChange={e => setSelectedCategory(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-gray-300 bg-white py-2.5 px-3 text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                 >
                   {CATEGORIES.map(category => (
                     <option key={category} value={category}>
@@ -642,7 +555,7 @@ function ShopListPageContent() {
                 <select
                   value={sortBy}
                   onChange={e => setSortBy(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-gray-300 bg-white py-2.5 px-3 text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
                 >
                   {SORT_OPTIONS.map(option => (
                     <option key={option.value} value={option.value}>
@@ -657,32 +570,28 @@ function ShopListPageContent() {
 
         {/* Quick Stats Bar */}
         <div className="flex items-center justify-between mb-4">
-          <div className="text-sm text-gray-600">
-            <span className="font-semibold text-black">{totalShops}</span> shops found
+          <div className="text-sm text-gray-500">
+            <span className="font-semibold text-gray-900">{totalShops}</span> shops
             {selectedCategory !== 'All Categories' && ` in ${selectedCategory}`}
             {selectedCity !== 'all' && ` in ${selectedCity}`}
           </div>
-          
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg ${
-                viewMode === 'grid'
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              <Grid2x2 className="h-4 w-4" />
-            </button>
+
+          <div className="flex items-center rounded-lg border border-gray-200 p-0.5">
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded-lg ${
-                viewMode === 'list'
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              className={`p-1.5 rounded-md transition-colors ${
+                viewMode === 'list' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900'
               }`}
             >
               <List className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-md transition-colors ${
+                viewMode === 'grid' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              <Grid2x2 className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -691,38 +600,38 @@ function ShopListPageContent() {
         {(currentMarket || selectedCategory !== 'All Categories' || searchQuery || selectedCity !== 'all') && (
         <div className="flex flex-wrap gap-2 mb-4">
           {currentMarket && (
-            <div className="flex items-center gap-1 bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full text-sm font-medium">
+            <div className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-medium">
               <Building className="h-3 w-3" />
-              <span>Market: {currentMarket.name}</span>
-              <button onClick={clearMarketFilter}>
-                <X className="h-3 w-3 ml-1" />
+              <span>{currentMarket.name}</span>
+              <button onClick={clearMarketFilter} className="text-gray-400 hover:text-gray-700">
+                <X className="h-3 w-3" />
               </button>
             </div>
           )}
-          
+
           {selectedCategory !== 'All Categories' && (
-            <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm">
+            <div className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-medium">
               <span>{selectedCategory}</span>
-              <button onClick={() => setSelectedCategory('All Categories')}>
-                <X className="h-3 w-3 ml-1" />
+              <button onClick={() => setSelectedCategory('All Categories')} className="text-gray-400 hover:text-gray-700">
+                <X className="h-3 w-3" />
               </button>
             </div>
           )}
-          
+
           {searchQuery && (
-            <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm">
-              <span>Search: "{searchQuery}"</span>
-              <button onClick={() => setSearchQuery('')}>
-                <X className="h-3 w-3 ml-1" />
+            <div className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-medium">
+              <span>"{searchQuery}"</span>
+              <button onClick={() => setSearchQuery('')} className="text-gray-400 hover:text-gray-700">
+                <X className="h-3 w-3" />
               </button>
             </div>
           )}
-          
+
           {selectedCity !== 'all' && !currentMarket && (
-            <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm">
-              <span>City: {selectedCity}</span>
-              <button onClick={() => setSelectedCity('all')}>
-                <X className="h-3 w-3 ml-1" />
+            <div className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-medium">
+              <span>{selectedCity}</span>
+              <button onClick={() => setSelectedCity('all')} className="text-gray-400 hover:text-gray-700">
+                <X className="h-3 w-3" />
               </button>
             </div>
           )}
@@ -782,9 +691,9 @@ function ShopListPageContent() {
         {/* Shop List/Grid */}
         {filteredShops.length > 0 && (
           <>
-            <div className={viewMode === 'grid' 
-              ? 'grid grid-cols-2 gap-4' 
-              : 'space-y-4'
+            <div className={viewMode === 'grid'
+              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
+              : 'space-y-3'
             }>
               {filteredShops.map(shop => (
                 viewMode === 'grid' ? renderShopCard(shop) : renderShopRow(shop)
@@ -812,37 +721,6 @@ function ShopListPageContent() {
           </>
         )}
       </main>
-
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 py-3 px-4 flex justify-center gap-6">
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className={`flex flex-col items-center gap-1 ${
-            showFilters ? 'text-blue-600' : 'text-gray-600'
-          }`}
-        >
-          <SlidersHorizontal className="h-5 w-5" />
-          <span className="text-xs font-medium">Filters</span>
-        </button>
-        
-        <button
-          onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-          className="flex flex-col items-center gap-1 text-gray-600"
-        >
-          {viewMode === 'grid' ? <List className="h-5 w-5" /> : <Grid2x2 className="h-5 w-5" />}
-          <span className="text-xs font-medium">
-            {viewMode === 'grid' ? 'List' : 'Grid'}
-          </span>
-        </button>
-        
-        <button
-          onClick={() => router.push('/')}
-          className="flex flex-col items-center gap-1 text-gray-600"
-        >
-          <Store className="h-5 w-5" />
-          <span className="text-xs font-medium">Home</span>
-        </button>
-      </nav>
     </div>
   );
 }
