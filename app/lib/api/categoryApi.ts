@@ -1,9 +1,10 @@
 // lib/api/categoryApi.ts
 import apiClient from './apiClient';
 
-// Get all categories
+// Get all categories actually used by products (Product.category is a fixed
+// enum, not the separate admin-curated Category collection).
 export const getAllCategories = async () => {
-  const response = await apiClient.get('/products/categories/list');
+  const response = await apiClient.get('/products/categories/distinct');
   return response.data;
 };
 

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Search, Bike, Store, Package, ChevronRight, Heart, Plus, ShoppingBag, User, Star, Clock, Loader2, X } from 'lucide-react';
+import { MapPin, Search, Bike, Store, ChevronRight, Heart, Plus, User, Star, Clock, Loader2, X, Image as ImageIcon } from 'lucide-react';
 import { useMarkets } from '../lib/hooks/useMarkets';
 import { useShop } from '../lib/hooks/useShop';
 import { useProducts } from '../lib/hooks/useProducts';
@@ -451,9 +451,12 @@ export default function App() {
     console.log('🎯 Rendering markets:', sortedMarkets);
 
     // Function to handle market click
-    const handleMarketClick = (marketId: string, marketName: string) => {
+    const handleMarketClick = (marketId: string, marketName: string, marketCity?: string, marketOpen?: boolean) => {
       console.log('🛍️ Navigating to shops in market:', marketId, marketName);
-      router.push(`/shops?market=${marketId}&marketName=${encodeURIComponent(marketName)}`);
+      const params = new URLSearchParams({ market: marketId, marketName });
+      if (marketCity) params.set('city', marketCity);
+      params.set('open', String(marketOpen !== false));
+      router.push(`/shops?${params.toString()}`);
     };
 
     // Function to handle "View all" click
@@ -468,7 +471,7 @@ export default function App() {
         <div className="mb-4 flex items-center justify-between">
           <div className='flex justify-between w-full'>
             <h2 className="text-lg font-bold text-black">
-              Markets in {selectedState}
+             {selectedState}
               {selectedCity && selectedCity.toLowerCase() !== 'all' && `, ${selectedCity}`}
               <span className="text-sm font-normal text-gray-600 ml-2">
                 {/* ({sortedMarkets.length} {sortedMarkets.length === 1 ? 'market' : 'markets'}) */}
@@ -501,57 +504,59 @@ export default function App() {
           </button> */}
         </div>
 
-        <div className="space-y-4">
-          {sortedMarkets.map((market) => (
-            <article 
-              key={market._id} 
-              className="rounded-2xl cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => handleMarketClick(market._id, market.name)}
-            >
-              <div className='bg-white rounded-xl min-h-[35vh] w-full border border-gray-200 hover:border-gray-300'>
-                <div className="relative pt-[20px]">
-                  <div className="rounded-2xl overflow-hidden bg-gray-200 w-[90%] flex justify-center items-center m-auto h-48">
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
-                      <Store className="h-16 w-16 text-gray-400" />
-                    </div>
-                  </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {sortedMarkets.map((market) => {
+            const cityLabel = market.city && market.city.toLowerCase() !== 'nill' ? market.city : selectedState;
+            const vendorCount = market.vendorIds?.length || 0;
+
+            return (
+              <article
+                key={market._id}
+                className="rounded-2xl cursor-pointer hover:shadow-md transition-shadow h-full bg-white border border-gray-200 hover:border-gray-300 overflow-hidden flex flex-col"
+                onClick={() => handleMarketClick(market._id, market.name, cityLabel, market.isActive)}
+              >
+                <div className="relative h-40 bg-gray-900 flex items-center justify-center flex-shrink-0">
+                  <ImageIcon className="h-8 w-8 text-gray-600" strokeWidth={1.5} />
+
+                  <span className="absolute top-3 right-3 text-xs font-semibold px-3 py-1 rounded-full bg-yellow-400 text-gray-900">
+                    {market.isActive !== false ? 'Open now' : 'Closed'}
+                  </span>
+
+                  <span className="absolute bottom-3 left-3 text-xs text-gray-400">
+                    Real market photo here
+                  </span>
+                  <span className="absolute bottom-3 right-3 text-xs font-medium text-gray-300">
+                    {vendorCount > 0 ? `${vendorCount}+ vendors` : 'New market'}
+                  </span>
                 </div>
-                <div className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div className='flex w-full justify-between'>
-                      <h3 className="font-bold text-lg text-gray-900">{market.name}</h3>
-                      <div className="flex items-center mt-1 text-gray-600">
-                        <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
-                        <span className="text-sm">
-                          {market.city && market.city !== 'Nill' ? market.city : selectedState}
-                        </span>
+
+                <div className="p-4 flex flex-col flex-1">
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-bold text-gray-900">{market.name}</h3>
+                      <div className="flex items-center gap-1 text-gray-500 flex-shrink-0 mt-0.5">
+                        <MapPin className="h-3.5 w-3.5" />
+                        <span className="text-sm">{cityLabel}</span>
                       </div>
                     </div>
+                    {market.description && (
+                      <p className="text-gray-500 text-sm mt-1 truncate">{market.description}</p>
+                    )}
                   </div>
-                  {market.description && (
-                    <p className="text-gray-600 text-sm mt-2 line-clamp-2">{market.description}</p>
-                  )}
-                  {/* <div className="mt-3 flex justify-between items-center">
-                    <div className="text-xs text-gray-500">
-                      {market.vendorIds?.length || 0} vendors • {market.productIds?.length || 0} products
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {market.address ? `${market.address.substring(0, 20)}...` : 'No address'}
-                    </div>
-                  </div> */}
-                  <button 
-                    className="mt-4 w-full bg-gray-900 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+
+                  <button
+                    className="mt-4 w-full bg-gray-900 text-white text-sm font-semibold py-3 rounded-xl hover:bg-gray-800 transition-colors cursor-pointer"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleMarketClick(market._id, market.name);
+                      handleMarketClick(market._id, market.name, cityLabel, market.isActive);
                     }}
                   >
-                    Explore Market Shops
+                    Browse shops
                   </button>
                 </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       </section>
     );
@@ -611,136 +616,84 @@ export default function App() {
           <h2 className="text-lg font-bold text-black">
             Shops in {selectedState}
             {selectedCity && selectedCity !== 'all' && `, ${selectedCity}`}
-            <span className="text-sm font-normal text-gray-600 ml-2">
+            {/* <span className="text-sm font-normal text-gray-600 ml-2">
               ({searchFilteredShops.length} {searchFilteredShops.length === 1 ? 'shop' : 'shops'})
               {searchQuery && ` matching "${searchQuery}"`}
-            </span>
+            </span> */}
           </h2>
           {/* <button className="text-sm font-semibold text-gray-600 flex items-center gap-1 cursor-pointer">
             View all <ChevronRight className="h-4 w-4" />
           </button> */}
         </div>
 
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {searchFilteredShops.map(shop => {
             const isOpen = shop.isActive && shop.status !== 'closed';
-            
+            const cityLabel = shop.marketId?.city || shop.address?.split(',')[0] || selectedState;
+            const hasActivity = (shop.productsCount || 0) > 0 || (shop.totalReviews || 0) > 0;
+
             return (
-              <article key={shop._id} className="bg-white rounded-xl border border-gray-200 p-4">
-                <div className="flex gap-4">
-                  <div className="relative">
-                    <div className="w-24 h-24 rounded-lg overflow-hidden bg-gray-200">
-                      {shop.imageUrl || shop.logo ? (
-                        <img 
-                          src={shop.imageUrl || shop.logo} 
-                          alt={shop.name} 
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
-                          <Store className="h-8 w-8 text-gray-400" />
-                        </div>
-                      )}
-                    </div>
-                    {!isOpen && (
-                      <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
-                        <span className="text-white text-xs font-semibold bg-red-500 px-2 py-1 rounded">CLOSED</span>
-                      </div>
+              <article key={shop._id} className="bg-white rounded-xl border border-gray-200 p-4 h-full">
+                <div className="flex items-start gap-3">
+                  <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gray-900 flex items-center justify-center flex-shrink-0">
+                    {shop.imageUrl || shop.logo ? (
+                      <img
+                        src={shop.imageUrl || shop.logo}
+                        alt={shop.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Store className="h-6 w-6 text-yellow-400" />
                     )}
                   </div>
-                  
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-bold text-gray-900">{shop.name}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-sm text-gray-600">{shop.category}</span>
-                          {shop.isVerified && (
-                            <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
-                              Verified
-                            </span>
-                          )}
-                        </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <h3 className="font-bold text-gray-900 truncate">{shop.name}</h3>
+                        {/* <span className={`flex-shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                          isOpen ? 'bg-yellow-300 text-gray-900' : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          {isOpen ? 'Open' : 'Closed'}
+                        </span> */}
                       </div>
-                      <button className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer">
+                      <button className="text-gray-300 hover:text-red-500 transition-colors cursor-pointer flex-shrink-0">
                         <Heart className="h-5 w-5" />
                       </button>
                     </div>
-                    
-                    <div className="flex items-center gap-4 mt-3">
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                        <span className="text-sm font-semibold text-black">
-                          {shop.rating?.toFixed(1) || 'N/A'}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          ({shop.totalReviews || 0} reviews)
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-4 w-4 text-gray-500" />
-                        <span className="text-xs text-gray-600">
-                          {shop.marketId?.city || shop.address?.split(',')[0] || selectedState}
-                        </span>
-                      </div>
-                      <div className={`text-[10px] font-semibold px-2 py-1 rounded-full ${
-                        isOpen ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {isOpen ? 'OPEN NOW' : 'CLOSED'}
-                      </div>
-                    </div>
-                    
-                    <div className="mt-2 text-xs text-gray-500 flex items-center gap-2">
-                      <Package className="h-3 w-3" />
-                      <span>{shop.productsCount || 0} products</span>
-                      {shop.deliveryFee !== undefined && (
-                        <>
-                          <span>•</span>
-                          <span>Delivery: ₦{shop.deliveryFee?.toLocaleString() || '0'}</span>
-                        </>
-                      )}
-                      {shop.minimumOrder !== undefined && shop.minimumOrder > 0 && (
-                        <>
-                          <span>•</span>
-                          <span>Min: ₦{shop.minimumOrder?.toLocaleString() || '0'}</span>
-                        </>
-                      )}
-                    </div>
-                                        
-                     {shop.tags && shop.tags.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {shop.tags.slice(0, 3).map((tag: string) => (
-                          <span 
-                            key={tag} 
-                            className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                        {shop.tags.length > 3 && (
-                          <span className="text-xs text-gray-400 px-1">
-                            +{shop.tags.length - 3} more
-                          </span>
-                        )}
-                      </div>
-                    )}
-                                        
-                    <div className="flex gap-2 mt-4">
-                      <button 
-                        className="flex-1 bg-gray-900 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/vendor/${shop._id}`);
-                        }}
-                      >
-                        Visit Vendor
-                      </button>
-                      <button className="px-4 bg-white border border-gray-300 text-gray-900 text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1 cursor-pointer">
-                        <ShoppingBag className="h-4 w-4" />
-                        Shop
-                      </button>
-                    </div>
+
+                    <p className="text-sm text-gray-500 mt-0.5 truncate">
+                      {shop.category}{cityLabel ? ` · ${cityLabel}` : ''}
+                    </p>
+
+                    {hasActivity ? (
+                      <p className="text-sm text-gray-700 mt-1 flex items-center gap-1 flex-wrap">
+                        <Star className="h-3.5 w-3.5 text-yellow-400 fill-current flex-shrink-0" />
+                        <span className="font-medium">{shop.rating?.toFixed(1) || 'N/A'}</span>
+                        <span className="text-gray-400">({shop.totalReviews || 0})</span>
+                        <span className="text-gray-400">· {shop.productsCount || 0} products</span>
+                      </p>
+                    ) : (
+[                      <p className="text-[15px] text-[#9a9ca0] mt-1 font-[400]">New shop</p>
+]                    )}
                   </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-100">
+                  <span className="text-[15px] text-[#9a9ca0] mt-1 font-[400]">
+                    {hasActivity
+                      ? (cityLabel ? `Delivers in ${cityLabel}` : 'Delivers to your area')
+                      : 'No products listed yet'}
+                  </span>
+                  <button
+                    className="px-5 py-2 bg-gray-900 text-white text-sm font-semibold rounded-full hover:bg-gray-800 transition-colors cursor-pointer flex-shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/vendor/${shop._id}`);
+                    }}
+                  >
+                    Visit
+                  </button>
                 </div>
               </article>
             );
@@ -971,13 +924,13 @@ export default function App() {
   };
 
   return (
-     <div className="min-h-screen bg-white">
+     <div className="flex min-h-dvh flex-col bg-white">
       <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
-        <div className="flex items-center justify-between px-4 py-3 w-full">
+        <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-3 max-w-6xl mx-auto w-full">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gray-900 flex items-center justify-center">
-              <Store className="h-6 w-6 text-white" />
-            </div>
+           
+              <img src="/olament.png" alt="Olament Logo" className="h-12 w-12" />
+            
             <div>
               <div className="text-lg font-bold text-black">Olament</div>
               <div className="text-xs text-gray-600">Your local market, online</div>
@@ -1021,56 +974,58 @@ export default function App() {
         </div>
       </header>
 
-      <main className="px-4 pb-20 bg-gray-50">
-        <div className="">
-          <div className="flex bg-gray-100">
-            <div className='h-11 w-full flex items-center justify-center'>
-              {['shops', 'markets'].map(t => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className={`text-sm font-semibold capitalize justify-between w-full cursor-pointer ${tab === t ? 'text-gray-900 bg-white rounded-lg py-2' : 'text-gray-500'}`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 relative">
-          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-          <input
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder={`Search ${tab}...`}
-            className="w-full rounded-lg border placeholder-gray-400 border-gray-300 py-3 pl-10 pr-3 text-sm focus:outline-none"
-          />
-        </div>
-
-        {/* Promo Banner with Dismiss Button */}
-        {showPromo && (
-          <div className="mt-4 rounded-2xl bg-yellow-400 flex gap-3 w-full h-[12vh] min-h-[80px] relative">
-            <div className='flex items-center gap-3 justify-center m-auto pr-12'>
-              <div className="rounded-lg p-2.5 flex-shrink-0">
-                <Bike className="h-8 w-8 text-black" />
-              </div>
-              <div>
-                <div className="text-base font-bold mb-1 text-black">Browse shops → Order → We deliver</div>
-                <div className="text-sm text-gray-800">Local markets brought to your door</div>
+      <main className="flex-1 px-4 pb-24 sm:px-6 md:pb-12 lg:px-8 bg-gray-50">
+        <div className="max-w-6xl mx-auto">
+          <div className="mt-0 flex flex-col md:flex-row md:items-center gap-3">
+            <div className="flex bg-gray-100 rounded-lg md:w-64 md:flex-shrink-0">
+              <div className='h-11 w-full flex items-center justify-center'>
+                {['shops', 'markets'].map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setTab(t)}
+                    className={`text-sm font-semibold capitalize justify-between w-full cursor-pointer ${tab === t ? 'text-gray-900 bg-white rounded-lg py-2' : 'text-gray-500'}`}
+                  >
+                    {t}
+                  </button>
+                ))}
               </div>
             </div>
-          </div>
-        )}
 
-        {renderTabContent()}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+              <input
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder={`Search ${tab}...`}
+                className="w-full rounded-lg border placeholder-gray-400 border-gray-300 py-3 pl-10 pr-3 text-sm focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Promo Banner with Dismiss Button */}
+          {showPromo && (
+            <div className="mt-4 rounded-2xl bg-yellow-400 flex gap-3 w-full h-24 sm:h-28 relative">
+              <div className='flex items-center gap-3 justify-center m-auto pr-12'>
+                <div className="rounded-lg p-2.5 flex-shrink-0">
+                  <Bike className="h-8 w-8 text-black" />
+                </div>
+                <div>
+                  <div className="text-base font-bold mb-1 text-black">Browse shops → Order → We deliver</div>
+                  <div className="text-sm text-gray-800">Local markets brought to your door</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {renderTabContent()}
+        </div>
       </main>
 
       <BottomNav
         onNavigate={handleNavClick}
         activeRoute="home"
       />
-        
+
     </div>
   );
 }

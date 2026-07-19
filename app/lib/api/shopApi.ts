@@ -13,7 +13,15 @@ export interface ShopApiResponse {
     city?: string;
     state?: string;
   };
-  ownerId: string;
+  ownerId: string | {
+    _id: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    avatar?: string;
+    phone?: string;
+    verified?: boolean;
+  };
   address: string;
   contactPhone?: string;
   contactEmail?: string;
@@ -45,6 +53,15 @@ export interface ShopProfile {
     name?: string;
     city?: string;
     state?: string;
+  };
+  ownerId?: string | {
+    _id: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    avatar?: string;
+    phone?: string;
+    verified?: boolean;
   };
   address: string;
   contactPhone?: string;
@@ -126,6 +143,7 @@ class ShopApi {
       description: apiShop.description,
       category: apiShop.category,
       marketId: apiShop.marketId,
+      ownerId: apiShop.ownerId,
       address: apiShop.address,
       contactPhone: apiShop.contactPhone,
       contactEmail: apiShop.contactEmail,

@@ -109,8 +109,8 @@ const BottomNav = ({
   }, [router, onNavigate, isNavigating]);
   
   return (
-    <nav className={`fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 ${className}`}>
-      <div className="flex items-center justify-around px-2 py-3">
+    <nav className={`fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 md:bottom-4 md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-auto md:rounded-full md:border md:shadow-lg ${className}`}>
+      <div className="flex items-center justify-around px-2 py-3 md:gap-1 md:px-3">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeRoute === item.id;

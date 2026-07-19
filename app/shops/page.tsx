@@ -1,23 +1,15 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams  } from 'next/navigation';
-import { 
-  MapPin,
+import {
   Search,
   Store,
   ChevronRight,
-  SlidersHorizontal,
   Star,
-  Package,
   Loader2,
   X,
   ArrowLeft,
-  Grid2x2,
-  List,
-  ShieldCheck,
-  Building
 } from 'lucide-react';
-import { useShop } from '@/app/lib/hooks/useShop';
 import { shopApi } from '@/app/lib/api/shopApi';
 
 // Types
@@ -46,38 +38,17 @@ interface ShopProfile {
   };
 }
 
-// Filter options
-const CATEGORIES = [
-  'All Categories',
-  'Electronics',
-  'Groceries',
-  'Clothing & Fashion',
-  'Books & Stationery',
-  'Home & Kitchen',
-  'Beauty & Personal Care',
-  'Health & Wellness',
-  'Sports & Outdoors',
-  'Automotive',
-  'Other'
-];
-
-const SORT_OPTIONS = [
-  { value: 'rating', label: 'Highest Rated' },
-  { value: 'productsCount', label: 'Most Products' },
-  { value: 'newest', label: 'Newest First' },
-  { value: 'name', label: 'Alphabetical' },
-];
-
 function ShopListPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   // Get query parameters
   const marketId = searchParams?.get('market');
   const marketName = searchParams?.get('marketName');
   const stateParam = searchParams?.get('state');
   const cityParam = searchParams?.get('city');
-  
+  const openParam = searchParams?.get('open');
+
   // State
   const [shops, setShops] = useState<ShopProfile[]>([]);
   const [filteredShops, setFilteredShops] = useState<ShopProfile[]>([]);
@@ -87,27 +58,12 @@ function ShopListPageContent() {
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [selectedState, setSelectedState] = useState(stateParam || 'Lagos');
   const [selectedCity, setSelectedCity] = useState(cityParam || 'all');
-  const [sortBy, setSortBy] = useState('rating');
-  const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [totalShops, setTotalShops] = useState(0);
   const [currentMarket, setCurrentMarket] = useState<{ id: string; name: string } | null>(
     marketId && marketName ? { id: marketId, name: decodeURIComponent(marketName) } : null
   );
-  // States data (you can fetch this from API or use static)
-  const states = [
-    "Lagos", "Abuja", "Rivers", "Oyo", "Kano", "Kaduna", 
-    "Edo", "Delta", "Ogun", "Ondo", "Enugu", "Plateau"
-  ];
-  
-  // Cities data (simplified - in real app, fetch based on selected state)
-  const cities = {
-    Lagos: ['all', 'Lekki', 'Victoria Island', 'Ikeja', 'Surulere', 'Yaba', 'Apapa'],
-    Abuja: ['all', 'Garki', 'Wuse', 'Maitama', 'Asokoro', 'Gwarinpa'],
-    Rivers: ['all', 'Port Harcourt', 'Borokiri', 'Rumuola', 'Trans-Amadi'],
-  };
 
   // Fetch shops
    const fetchShops = useCallback(async (reset = false) => {
@@ -116,14 +72,14 @@ function ShopListPageContent() {
         setPage(1);
         setLoading(true);
       }
-      
+
       const params: any = {
         page: reset ? 1 : page,
         limit: 20,
         isActive: true,
-        sort: sortBy === 'newest' ? '-createdAt' : `-${sortBy}`,
+        sort: '-rating',
       };
-      
+
       // Add filters
       if (currentMarket) {
         params.marketId = currentMarket.id;
@@ -135,31 +91,31 @@ function ShopListPageContent() {
           params.city = selectedCity;
         }
       }
-      
+
       if (selectedCategory && selectedCategory !== 'All Categories') {
         params.category = selectedCategory;
       }
       if (searchQuery) {
         params.search = searchQuery;
       }
-      
+
       console.log('🛍️ Fetching shops with params:', params);
-      
+
       const response = await shopApi.getAllShops(params);
-      
+
       if (response.success && response.data) {
         const shopsData = response.data.shops || [];
         const total = response.data.total || 0;
-        
+
         if (reset) {
           setShops(shopsData);
         } else {
           setShops(prev => [...prev, ...shopsData]);
         }
-        
+
         setTotalShops(total);
         setHasMore(shopsData.length === 20);
-        
+
         if (reset) {
           setFilteredShops(shopsData);
         }
@@ -172,12 +128,12 @@ function ShopListPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [page, selectedState, selectedCity, selectedCategory, searchQuery, sortBy, currentMarket]);
+  }, [page, selectedState, selectedCity, selectedCategory, searchQuery, currentMarket]);
 
   // Initial fetch
   useEffect(() => {
     fetchShops(true);
-  }, [selectedState, selectedCity, selectedCategory, sortBy]);
+  }, [selectedState, selectedCity, selectedCategory]);
 
   // Search effect with debounce
   useEffect(() => {
@@ -186,7 +142,7 @@ function ShopListPageContent() {
         fetchShops(true);
       }
     }, 500);
-    
+
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -196,28 +152,35 @@ function ShopListPageContent() {
       setFilteredShops(shops);
       return;
     }
-    
+
     let results = shops;
-    
+
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      results = results.filter(shop => 
+      results = results.filter(shop =>
         shop.name?.toLowerCase().includes(query) ||
         shop.category?.toLowerCase().includes(query) ||
         shop.tags?.some(tag => tag.toLowerCase().includes(query))
       );
     }
-    
+
     // Category filter
     if (selectedCategory !== 'All Categories') {
-      results = results.filter(shop => 
+      results = results.filter(shop =>
         shop.category?.toLowerCase() === selectedCategory.toLowerCase()
       );
     }
-    
+
     setFilteredShops(results);
   }, [shops, searchQuery, selectedCategory]);
+
+  // Categories actually present among the loaded shops (drives the filter pills)
+  const shopCategories = useMemo(() => {
+    const set = new Set<string>();
+    shops.forEach(shop => { if (shop.category) set.add(shop.category); });
+    return Array.from(set);
+  }, [shops]);
 
   // Load more shops
   const loadMore = () => {
@@ -230,8 +193,6 @@ function ShopListPageContent() {
   const resetFilters = () => {
     setSelectedCategory('All Categories');
     setSearchQuery('');
-    setSortBy('rating');
-    setShowFilters(false);
   };
 
   const clearMarketFilter = () => {
@@ -240,154 +201,51 @@ function ShopListPageContent() {
     router.push('/shops');
   };
 
-  // Update header based on market filter
-  const getHeaderTitle = () => {
-    if (currentMarket) {
-      return `Shops in ${currentMarket.name}`;
-    }
-    if (selectedCity !== 'all') {
-      return `Shops in ${selectedCity}, ${selectedState}`;
-    }
-    return 'All Shops';
-  };
-
-  const getHeaderSubtitle = () => {
-    if (currentMarket) {
-      return 'Browse shops in this market';
-    }
-    return 'Browse local shops and markets';
-  };
-
-  // Render shop card (Grid view)
-  const renderShopCard = (shop: ShopProfile) => {
-    const isOpen = shop.isActive && shop.status !== 'closed' && shop.status !== 'busy';
-
-
-    return (
-      <div
-        key={shop._id}
-        onClick={() => router.push(`/shops/${shop._id}`)}
-        className="group bg-white rounded-lg border border-gray-200 overflow-hidden hover:border-gray-300 transition-colors cursor-pointer"
-      >
-        <div className="relative">
-          <div className="h-40 bg-gray-100">
-            {shop.imageUrl || shop.logo ? (
-              <img
-                src={shop.imageUrl || shop.logo}
-                alt={shop.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                <Store className="h-10 w-10 text-gray-300" />
-              </div>
-            )}
-          </div>
-
-          {/* Status badge */}
-          <div className={`absolute top-2.5 right-2.5 text-[10px] font-medium tracking-wide px-2 py-0.5 rounded-full border ${
-            isOpen ? 'bg-white/90 border-gray-200 text-gray-700' : 'bg-white/90 border-gray-200 text-gray-400'
-          }`}>
-            {isOpen ? 'Open' : 'Closed'}
-          </div>
-        </div>
-
-        <div className="p-4">
-          <div className="flex items-center gap-1.5">
-            <h3 className="font-semibold text-gray-900 line-clamp-1">{shop.name}</h3>
-            {shop.isVerified && (
-              <ShieldCheck className="h-4 w-4 text-gray-400 flex-shrink-0" />
-            )}
-          </div>
-          <p className="text-sm text-gray-500 mt-0.5">{shop.category}</p>
-
-          {/* Meta */}
-          <div className="flex items-center gap-3 mt-3 text-xs text-gray-500">
-            <span className="flex items-center gap-1">
-              <Star className="h-3.5 w-3.5 text-gray-400 fill-current" />
-              <span className="text-gray-700 font-medium">{shop.rating?.toFixed(1) || 'N/A'}</span>
-            </span>
-            <span className="flex items-center gap-1 truncate">
-              <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="truncate">{shop.marketId?.city || shop.address?.split(',')[0] || selectedState}</span>
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
-            <Package className="h-3.5 w-3.5" />
-            <span>{shop.productsCount || 0} products</span>
-            {shop.deliveryFee !== undefined && (
-              <span className="ml-auto text-gray-500">₦{shop.deliveryFee?.toLocaleString() || '0'} delivery</span>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Render shop row (List view)
+  // Render shop row
   const renderShopRow = (shop: ShopProfile) => {
     const isOpen = shop.isActive && shop.status !== 'closed';
-    
+    const hasActivity = (shop.productsCount || 0) > 0 || (shop.totalReviews || 0) > 0;
+
     return (
       <div
         key={shop._id}
         onClick={() => router.push(`/shops/${shop._id}`)}
-        className="bg-white rounded-lg border border-gray-200 p-4 hover:border-gray-300 transition-colors cursor-pointer"
+        className="bg-white rounded-xl border border-gray-200 p-3 hover:border-gray-300 transition-colors cursor-pointer flex items-center gap-3"
       >
-        <div className="flex gap-4">
-          <div className="relative flex-shrink-0">
-            <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
-              {shop.imageUrl || shop.logo ? (
-                <img
-                  src={shop.imageUrl || shop.logo}
-                  alt={shop.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                  <Store className="h-7 w-7 text-gray-300" />
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h3 className="font-semibold text-gray-900 truncate">{shop.name}</h3>
-              {shop.isVerified && (
-                <ShieldCheck className="h-4 w-4 text-gray-400 flex-shrink-0" />
-              )}
-              <span className={`ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full border ${
-                isOpen ? 'border-gray-200 text-gray-600' : 'border-gray-200 text-gray-400'
-              }`}>
-                {isOpen ? 'Open' : 'Closed'}
-              </span>
-            </div>
-            <p className="text-sm text-gray-500 mt-0.5">{shop.category}</p>
-
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2.5 text-xs text-gray-500">
-              <span className="flex items-center gap-1">
-                <Star className="h-3.5 w-3.5 text-gray-400 fill-current" />
-                <span className="text-gray-700 font-medium">{shop.rating?.toFixed(1) || 'N/A'}</span>
-                <span className="text-gray-400">({shop.totalReviews || 0})</span>
-              </span>
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5" />
-                {shop.marketId?.city || shop.address?.split(',')[0] || selectedState}
-              </span>
-              <span className="flex items-center gap-1">
-                <Package className="h-3.5 w-3.5" />
-                {shop.productsCount || 0} products
-              </span>
-              {shop.deliveryFee !== undefined && (
-                <span>Delivery ₦{shop.deliveryFee?.toLocaleString() || '0'}</span>
-              )}
-            </div>
-          </div>
-
-          <ChevronRight className="h-5 w-5 text-gray-300 self-center flex-shrink-0" />
+        <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-900 flex items-center justify-center flex-shrink-0">
+          {shop.imageUrl || shop.logo ? (
+            <img
+              src={shop.imageUrl || shop.logo}
+              alt={shop.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <Store className="h-5 w-5 text-yellow-400" />
+          )}
         </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-gray-900 truncate">{shop.name}</h3>
+            <span className={`flex-shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${
+              isOpen ? 'bg-yellow-400 text-gray-900' : 'bg-gray-100 text-gray-500'
+            }`}>
+              {isOpen ? 'Open' : 'Closed'}
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 truncate">{shop.category}</p>
+          {hasActivity ? (
+            <p className="text-xs text-gray-500 mt-0.5">
+              <Star className="h-3 w-3 text-yellow-400 fill-current inline -mt-0.5 mr-1" />
+              <span className="font-medium text-gray-700">{shop.rating?.toFixed(1) || 'N/A'}</span>
+              <span> ({shop.totalReviews || 0}) · {shop.productsCount || 0} products</span>
+            </p>
+          ) : (
+            <p className="text-xs text-gray-400 mt-0.5">New shop</p>
+          )}
+        </div>
+
+        <ChevronRight className="h-5 w-5 text-gray-300 flex-shrink-0" />
       </div>
     );
   };
@@ -396,248 +254,89 @@ function ShopListPageContent() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
-        <div className="flex items-center justify-between px-4 py-3.5 max-w-5xl mx-auto">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3 px-4 py-3.5 max-w-5xl mx-auto">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => router.back()}
-              className="p-2 -ml-2 hover:bg-gray-100 rounded-lg"
+              className="p-2 -ml-2 hover:bg-gray-100 rounded-lg flex-shrink-0 cursor-pointer"
             >
               <ArrowLeft className="h-5 w-5 text-gray-600" />
             </button>
-            <div>
-              <h1 className="text-base font-semibold text-gray-900 tracking-tight">{getHeaderTitle()}</h1>
-              <p className="text-xs text-gray-500">{getHeaderSubtitle()}</p>
+            <div className="min-w-0">
+              <h1 className="text-base font-bold text-gray-900 truncate">
+                {currentMarket ? currentMarket.name : 'All Shops'}
+              </h1>
+              {/* <p className="text-xs text-gray-500 truncate">
+                {currentMarket
+                  ? [cityParam, openParam === 'false' ? 'closed' : 'open now'].filter(Boolean).join(' · ')
+                  : 'Browse local shops and markets'}
+              </p> */}
             </div>
           </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              showFilters ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-            <span className="hidden sm:inline">Filters</span>
-          </button>
+          {currentMarket && (
+            <button
+              onClick={clearMarketFilter}
+              className="text-sm font-medium text-gray-500 hover:text-gray-900 flex-shrink-0 cursor-pointer"
+            >
+              All shops
+            </button>
+          )}
         </div>
-
-        {/* Market Filter Banner */}
-        {currentMarket && (
-          <div className="border-t border-gray-100 bg-gray-50 px-4 py-3">
-            <div className="flex items-center justify-between max-w-5xl mx-auto">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white border border-gray-200 rounded-lg">
-                  <Building className="h-4 w-4 text-gray-500" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-900">
-                    Showing shops in {currentMarket.name}
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Only shops from this market are shown
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={clearMarketFilter}
-                className="text-xs text-gray-600 hover:text-gray-900 font-medium px-3 py-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                Show all
-              </button>
-            </div>
-          </div>
-        )}
       </header>
-
 
       <main className="px-4 pb-16 max-w-5xl mx-auto">
         {/* Search Bar */}
-        <div className="sticky top-16 z-20 bg-gray-50 pt-4 pb-3">
+        <div className="sticky top-16 z-20 bg-gray-50 pt-4 pb-1">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-gray-400" />
             <input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search shops by name or category"
-              className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-3 text-sm placeholder:text-gray-400 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+              placeholder="Search shops or categories"
+              className="w-full rounded-full border-none bg-gray-100 py-3 pl-11 pr-10 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
             )}
           </div>
-        </div>
 
-        {/* Filters Panel */}
-        {showFilters && (
-          <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-900">Filters</h2>
+          {/* Category Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 pt-3 pb-1">
+            <button
+              onClick={() => setSelectedCategory('All Categories')}
+              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                selectedCategory === 'All Categories'
+                  ? 'bg-yellow-400 text-gray-900'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              All
+            </button>
+            {shopCategories.map(category => (
               <button
-                onClick={resetFilters}
-                className="text-sm text-gray-500 hover:text-gray-900 font-medium"
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                  selectedCategory === category
+                    ? 'bg-yellow-400 text-gray-900'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
               >
-                Reset all
+                {category}
               </button>
-            </div>
-            
-            <div className="space-y-4">
-              {/* State Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  State
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {states.slice(0, 6).map(state => (
-                    <button
-                      key={state}
-                      onClick={() => setSelectedState(state)}
-                      className={`py-2 px-3 rounded-lg text-sm font-medium border transition-colors ${
-                        selectedState === state
-                          ? 'bg-gray-900 text-white border-gray-900'
-                          : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      {state}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* City Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  City
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {(cities[selectedState as keyof typeof cities] || ['all']).map(city => (
-                    <button
-                      key={city}
-                      onClick={() => setSelectedCity(city)}
-                      className={`py-2 px-3 rounded-lg text-sm font-medium border transition-colors ${
-                        selectedCity === city
-                          ? 'bg-gray-900 text-white border-gray-900'
-                          : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      {city === 'all' ? 'All Cities' : city}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Category Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Category
-                </label>
-                <select
-                  value={selectedCategory}
-                  onChange={e => setSelectedCategory(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white py-2.5 px-3 text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
-                >
-                  {CATEGORIES.map(category => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Sort Options */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sort By
-                </label>
-                <select
-                  value={sortBy}
-                  onChange={e => setSortBy(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white py-2.5 px-3 text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
-                >
-                  {SORT_OPTIONS.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Quick Stats Bar */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="text-sm text-gray-500">
-            <span className="font-semibold text-gray-900">{totalShops}</span> shops
-            {selectedCategory !== 'All Categories' && ` in ${selectedCategory}`}
-            {selectedCity !== 'all' && ` in ${selectedCity}`}
-          </div>
-
-          <div className="flex items-center rounded-lg border border-gray-200 p-0.5">
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-md transition-colors ${
-                viewMode === 'list' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900'
-              }`}
-            >
-              <List className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-md transition-colors ${
-                viewMode === 'grid' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900'
-              }`}
-            >
-              <Grid2x2 className="h-4 w-4" />
-            </button>
+            ))}
           </div>
         </div>
 
-        {/* Active Filters */}
-        {(currentMarket || selectedCategory !== 'All Categories' || searchQuery || selectedCity !== 'all') && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {currentMarket && (
-            <div className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-medium">
-              <Building className="h-3 w-3" />
-              <span>{currentMarket.name}</span>
-              <button onClick={clearMarketFilter} className="text-gray-400 hover:text-gray-700">
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          )}
-
-          {selectedCategory !== 'All Categories' && (
-            <div className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-medium">
-              <span>{selectedCategory}</span>
-              <button onClick={() => setSelectedCategory('All Categories')} className="text-gray-400 hover:text-gray-700">
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          )}
-
-          {searchQuery && (
-            <div className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-medium">
-              <span>"{searchQuery}"</span>
-              <button onClick={() => setSearchQuery('')} className="text-gray-400 hover:text-gray-700">
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          )}
-
-          {selectedCity !== 'all' && !currentMarket && (
-            <div className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-medium">
-              <span>{selectedCity}</span>
-              <button onClick={() => setSelectedCity('all')} className="text-gray-400 hover:text-gray-700">
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
+        {/* Shop count */}
+        <p className="text-sm text-gray-500 mt-3 mb-3">
+          {totalShops} shop{totalShops === 1 ? '' : 's'}
+        </p>
 
         {/* Loading State */}
         {loading && filteredShops.length === 0 && (
@@ -688,16 +387,11 @@ function ShopListPageContent() {
           </div>
         )}
 
-        {/* Shop List/Grid */}
+        {/* Shop List */}
         {filteredShops.length > 0 && (
           <>
-            <div className={viewMode === 'grid'
-              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
-              : 'space-y-3'
-            }>
-              {filteredShops.map(shop => (
-                viewMode === 'grid' ? renderShopCard(shop) : renderShopRow(shop)
-              ))}
+            <div className="space-y-3">
+              {filteredShops.map(shop => renderShopRow(shop))}
             </div>
 
             {/* Load More Button */}

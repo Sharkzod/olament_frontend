@@ -355,18 +355,21 @@ const handleContactSeller = async () => {
 
         {/* Specifications */}
         {product.specifications && product.specifications.length > 0 && (
-          <div className="mt-12 bg-white rounded-2xl border border-gray-200 p-8">
+          <div className="mt-12 bg-white rounded-2xl border border-gray-200 p-6 sm:p-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Specifications</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {product.specifications.map((spec, index) => (
                 <div
                   key={spec._id || index}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                  className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
                 >
-                  <span className="font-semibold text-gray-700">
-                    {formatSpecKey(spec.key)}
-                  </span>
-                  <span className="text-gray-900 text-right">{spec.value}</span>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-yellow-400 flex-shrink-0" />
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                      {formatSpecKey(spec.key)}
+                    </span>
+                  </div>
+                  <p className="text-gray-900 font-medium leading-snug">{spec.value}</p>
                 </div>
               ))}
             </div>

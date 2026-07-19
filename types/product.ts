@@ -158,7 +158,7 @@ export interface CreateProductData {
   tags?: string[];
   specifications?: Record<string, any>;
   condition?: 'new' | 'used' | 'refurbished';
-  shopId?: string;
+  shopId: string;
 }
 
 export interface UpdateProductData extends Partial<CreateProductData> {
